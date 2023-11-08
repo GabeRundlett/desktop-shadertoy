@@ -1,0 +1,32 @@
+cmake_minimum_required(VERSION 3.21)
+
+include("${CMAKE_CURRENT_LIST_DIR}/cmake/deps.cmake")
+
+project(desktop-shadertoy VERSION 0.1.0)
+
+add_executable(${PROJECT_NAME}
+    "src/main.cpp"
+    "src/ui/app_window.cpp"
+    "src/ui/app_ui.cpp"
+    "src/ui/rml/render_daxa.cpp"
+    "src/ui/rml/system_glfw.cpp"
+)
+target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20)
+
+find_package(daxa CONFIG REQUIRED)
+find_package(glfw3 CONFIG REQUIRED)
+find_package(RmlUi CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
+find_package(Stb REQUIRED)
+
+target_link_libraries(${PROJECT_NAME}
+PRIVATE
+    daxa::daxa
+    nlohmann_json::nlohmann_json
+    glfw
+    RmlCore RmlDebugger
+)
+target_include_directories(${PROJECT_NAME} PRIVATE
+    ${Stb_INCLUDE_DIR}
+    "${CMAKE_CURRENT_LIST_DIR}/src"
+)

@@ -1,0 +1,9 @@
+.out*
+.vs*
+.cache*
+build*
+
+imgui.ini
+*.dot
+vcpkg/
+media/

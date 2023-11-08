@@ -1,0 +1,3 @@
+[submodule "deps/Daxa"]
+	path = deps/Daxa
+	url = https://github.com/Ipotrick/Daxa
