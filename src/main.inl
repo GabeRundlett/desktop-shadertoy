@@ -19,6 +19,7 @@ DAXA_DECL_BUFFER_PTR(GpuInput)
 struct CombinedImageSampler2D {
     daxa_ImageViewId image_view_id;
     daxa_SamplerId sampler_id;
+    daxa_u32 convert_int_to_float;
 };
 
 struct CombinedImageSampler2D_int {
@@ -27,6 +28,11 @@ struct CombinedImageSampler2D_int {
 };
 
 struct CombinedImageSamplerCube {
+    daxa_ImageViewId image_view_id;
+    daxa_SamplerId sampler_id;
+};
+
+struct CombinedImageSampler3D {
     daxa_ImageViewId image_view_id;
     daxa_SamplerId sampler_id;
 };

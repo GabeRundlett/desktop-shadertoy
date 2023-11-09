@@ -31,29 +31,75 @@ void main() {
 #endif
 
 // overloads
-vec4 texture(CombinedImageSampler2D c, vec2 p) { return texture(daxa_sampler2D(c.image_view_id, c.sampler_id), p); }
-vec4 texture(CombinedImageSampler2D c, vec2 p, float bias) { return texture(daxa_sampler2D(c.image_view_id, c.sampler_id), p, bias); }
+vec4 texture(CombinedImageSampler2D c, vec2 p) {
+    if (c.convert_int_to_float == 1) {
+        return vec4(texture(daxa_isampler2D(c.image_view_id, c.sampler_id), p));
+    } else {
+        return texture(daxa_sampler2D(c.image_view_id, c.sampler_id), p);
+    }
+}
+vec4 texture(CombinedImageSampler2D c, vec2 p, float bias) {
+    if (c.convert_int_to_float == 1) {
+        return vec4(texture(daxa_isampler2D(c.image_view_id, c.sampler_id), p, bias));
+    } else {
+        return texture(daxa_sampler2D(c.image_view_id, c.sampler_id), p, bias);
+    }
+}
 ivec4 texture(CombinedImageSampler2D_int c, vec2 p) { return texture(daxa_isampler2D(c.image_view_id, c.sampler_id), p); }
 ivec4 texture(CombinedImageSampler2D_int c, vec2 p, float bias) { return texture(daxa_isampler2D(c.image_view_id, c.sampler_id), p, bias); }
 vec4 texture(CombinedImageSamplerCube c, vec3 p) { return texture(daxa_samplerCube(c.image_view_id, c.sampler_id), p); }
 vec4 texture(CombinedImageSamplerCube c, vec3 p, float bias) { return texture(daxa_samplerCube(c.image_view_id, c.sampler_id), p, bias); }
+vec4 texture(CombinedImageSampler3D c, vec3 p) { return texture(daxa_sampler3D(c.image_view_id, c.sampler_id), p); }
+vec4 texture(CombinedImageSampler3D c, vec3 p, float bias) { return texture(daxa_sampler3D(c.image_view_id, c.sampler_id), p, bias); }
 
-ivec2 textureSize(CombinedImageSampler2D c, int lod) { return textureSize(daxa_sampler2D(c.image_view_id, c.sampler_id), lod); }
+ivec2 textureSize(CombinedImageSampler2D c, int lod) {
+    if (c.convert_int_to_float == 1) {
+        return textureSize(daxa_isampler2D(c.image_view_id, c.sampler_id), lod);
+    } else {
+        return textureSize(daxa_sampler2D(c.image_view_id, c.sampler_id), lod);
+    }
+}
 ivec2 textureSize(CombinedImageSampler2D_int c, int lod) { return textureSize(daxa_isampler2D(c.image_view_id, c.sampler_id), lod); }
 ivec2 textureSize(CombinedImageSamplerCube c, int lod) { return textureSize(daxa_samplerCube(c.image_view_id, c.sampler_id), lod); }
 
-int textureQueryLevels(CombinedImageSampler2D c) { return textureQueryLevels(daxa_sampler2D(c.image_view_id, c.sampler_id)); }
+int textureQueryLevels(CombinedImageSampler2D c) {
+    if (c.convert_int_to_float == 1) {
+        return textureQueryLevels(daxa_isampler2D(c.image_view_id, c.sampler_id));
+    } else {
+        return textureQueryLevels(daxa_sampler2D(c.image_view_id, c.sampler_id));
+    }
+}
 int textureQueryLevels(CombinedImageSampler2D_int c) { return textureQueryLevels(daxa_isampler2D(c.image_view_id, c.sampler_id)); }
 int textureQueryLevels(CombinedImageSamplerCube c) { return textureQueryLevels(daxa_samplerCube(c.image_view_id, c.sampler_id)); }
 
-vec4 texelFetch(CombinedImageSampler2D c, ivec2 p, int lod) { return texelFetch(daxa_texture2D(c.image_view_id), p, lod); }
+vec4 texelFetch(CombinedImageSampler2D c, ivec2 p, int lod) {
+    if (c.convert_int_to_float == 1) {
+        return vec4(texelFetch(daxa_isampler2D(c.image_view_id, c.sampler_id), p, lod));
+    } else {
+        return texelFetch(daxa_texture2D(c.image_view_id), p, lod);
+    }
+}
 ivec4 texelFetch(CombinedImageSampler2D_int c, ivec2 p, int lod) { return texelFetch(daxa_itexture2D(c.image_view_id), p, lod); }
+vec4 texelFetch(CombinedImageSampler3D c, ivec3 p, int lod) { return texelFetch(daxa_texture3D(c.image_view_id), p, lod); }
 
-vec4 textureLod(CombinedImageSampler2D c, vec2 p, float lod) { return textureLod(daxa_sampler2D(c.image_view_id, c.sampler_id), p, lod); }
+vec4 textureLod(CombinedImageSampler2D c, vec2 p, float lod) {
+    if (c.convert_int_to_float == 1) {
+        return vec4(textureLod(daxa_isampler2D(c.image_view_id, c.sampler_id), p, lod));
+    } else {
+        return textureLod(daxa_sampler2D(c.image_view_id, c.sampler_id), p, lod);
+    }
+}
 ivec4 textureLod(CombinedImageSampler2D_int c, vec2 p, float lod) { return textureLod(daxa_isampler2D(c.image_view_id, c.sampler_id), p, lod); }
 vec4 textureLod(CombinedImageSamplerCube c, vec3 p, float lod) { return textureLod(daxa_samplerCube(c.image_view_id, c.sampler_id), p, lod); }
+vec4 textureLod(CombinedImageSampler3D c, vec3 p, float lod) { return textureLod(daxa_sampler3D(c.image_view_id, c.sampler_id), p, lod); }
 
-vec4 textureGrad(CombinedImageSampler2D c, vec2 p, vec2 dTdx, vec2 dTdy) { return textureGrad(daxa_sampler2D(c.image_view_id, c.sampler_id), p, dTdx, dTdy); }
+vec4 textureGrad(CombinedImageSampler2D c, vec2 p, vec2 dTdx, vec2 dTdy) {
+    if (c.convert_int_to_float == 1) {
+        return vec4(textureGrad(daxa_isampler2D(c.image_view_id, c.sampler_id), p, dTdx, dTdy));
+    } else {
+        return textureGrad(daxa_sampler2D(c.image_view_id, c.sampler_id), p, dTdx, dTdy);
+    }
+}
 ivec4 textureGrad(CombinedImageSampler2D_int c, vec2 p, vec2 dTdx, vec2 dTdy) { return textureGrad(daxa_isampler2D(c.image_view_id, c.sampler_id), p, dTdx, dTdy); }
 
 #include <iChannel0_decl>

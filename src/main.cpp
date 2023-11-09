@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <daxa/daxa.hpp>
 #include <daxa/utils/pipeline_manager.hpp>
 #include <daxa/utils/task_graph.hpp>
@@ -13,6 +14,7 @@
 #include <fstream>
 #include <unordered_map>
 #include <cstdlib>
+#include <random>
 
 #include <stb_image.h>
 
@@ -25,6 +27,8 @@ enum struct ShaderPassInputType {
     CUBE,
     KEYBOARD,
     TEXTURE,
+    CUBE_TEXTURE,
+    VOLUME_TEXTURE,
 };
 
 struct KeyboardInput {
@@ -164,8 +168,9 @@ void replace_all(std::string &s, std::string const &toReplace, std::string const
     while (true) {
         prevPos = pos;
         pos = s.find(toReplace, pos);
-        if (pos == std::string::npos)
+        if (pos == std::string::npos) {
             break;
+        }
         buf.append(s, prevPos, pos - prevPos);
         buf += replaceWith;
         pos += toReplace.size();
@@ -228,6 +233,8 @@ struct ShaderApp {
     void reset_input();
     void render();
     auto load_texture(std::string path) -> std::pair<daxa::ImageId, size_t>;
+    auto load_cube_texture(std::string path) -> std::pair<daxa::ImageId, size_t>;
+    auto load_volume_texture(std::string id) -> std::pair<daxa::ImageId, size_t>;
     void load_shadertoy_json(std::filesystem::path const &path);
     auto record_main_task_graph() -> daxa::TaskGraph;
 };
@@ -266,7 +273,7 @@ ShaderApp::ShaderApp()
 
     ui.app_windows[0].on_resize = [&]() {
         main_task_graph = record_main_task_graph();
-        reset_input();
+        // reset_input();
         render();
     };
     ui.app_windows[0].on_drop = [&](std::span<char const *> paths) {
@@ -274,9 +281,11 @@ ShaderApp::ShaderApp()
         main_task_graph = record_main_task_graph();
     };
     ui.app_windows[0].on_mouse_move = [&](float px, float py) {
+        mouse_pos.x = px;
+        mouse_pos.y = static_cast<float>(ui.app_windows[0].size.y) - py;
         if (mouse_enabled) {
-            gpu_input.Mouse.x = px;
-            gpu_input.Mouse.y = py;
+            gpu_input.Mouse.x = mouse_pos.x;
+            gpu_input.Mouse.y = mouse_pos.y;
         }
     };
     ui.app_windows[0].on_mouse_button = [&](int32_t button_id, int32_t action) {
@@ -313,6 +322,8 @@ ShaderApp::ShaderApp()
             //         toggle_fullscreen();
             //     }
             //     break;
+        default:
+            break;
         }
 
         if (transformed_key_id < 0 || transformed_key_id >= 256) {
@@ -464,7 +475,7 @@ auto ShaderApp::load_texture(std::string path) -> std::pair<daxa::ImageId, size_
         .format = daxa::Format::R8G8B8A8_UNORM,
         .size = {static_cast<uint32_t>(size_x), static_cast<uint32_t>(size_y), 1},
         .usage = daxa::ImageUsageFlagBits::TRANSFER_DST | daxa::ImageUsageFlagBits::SHADER_SAMPLED,
-        .name = "user_image",
+        .name = "texture",
     });
     task_image.set_images({.images = std::array{image_id}});
 
@@ -483,7 +494,7 @@ auto ShaderApp::load_texture(std::string path) -> std::pair<daxa::ImageId, size_
                 .allocate_info = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM,
                 .name = "staging_buffer",
             });
-            auto buffer_ptr = daxa_device.get_host_address_as<uint8_t>(staging_buffer).value();
+            auto *buffer_ptr = daxa_device.get_host_address_as<uint8_t>(staging_buffer).value();
             memcpy(buffer_ptr, temp_data, size_x * size_y * 4);
             auto &cmd_list = task_runtime.get_recorder();
             cmd_list.pipeline_barrier({
@@ -506,8 +517,157 @@ auto ShaderApp::load_texture(std::string path) -> std::pair<daxa::ImageId, size_
     return std::pair<daxa::ImageId, size_t>{image_id, task_image_index};
 }
 
+auto ShaderApp::load_cube_texture(std::string path) -> std::pair<daxa::ImageId, size_t> {
+    auto task_image_index = task_textures.size();
+    int32_t size_x = 0;
+    int32_t size_y = 0;
+    int32_t channel_n = 0;
+    auto task_image = daxa::TaskImage({.name = path});
+    replace_all(path, "/media/a/", "media/");
+    stbi_set_flip_vertically_on_load(0);
+    auto *temp_data = stbi_load(path.c_str(), &size_x, &size_y, &channel_n, 4);
+    auto image_id = daxa_device.create_image({
+        .dimensions = 2,
+        .format = daxa::Format::R8G8B8A8_UNORM,
+        .size = {static_cast<uint32_t>(size_x), static_cast<uint32_t>(size_y), 1},
+        .array_layer_count = 6,
+        .usage = daxa::ImageUsageFlagBits::TRANSFER_DST | daxa::ImageUsageFlagBits::SHADER_SAMPLED,
+        .name = "cube texture",
+    });
+    task_image.set_images({.images = std::array{image_id}});
+    daxa::TaskGraph temp_task_graph = daxa::TaskGraph({
+        .device = daxa_device,
+        .name = "temp_task_graph",
+    });
+    temp_task_graph.use_persistent_image(task_image);
+    auto loaded_buffers = std::vector<stbi_uc *>{};
+    loaded_buffers.reserve(6);
+    loaded_buffers.push_back(temp_data);
+    for (uint32_t i = 1; i < 6; ++i) {
+        auto temp_path = std::filesystem::path(path);
+        auto new_path = temp_path.parent_path() / std::filesystem::path(temp_path.stem().string() + "_" + std::to_string(i) + temp_path.extension().string());
+        auto *temp_data = stbi_load(new_path.string().c_str(), &size_x, &size_y, &channel_n, 4);
+        loaded_buffers.push_back(temp_data);
+    }
+    for (uint32_t i = 0; i < 6; ++i) {
+        temp_task_graph.add_task({
+            .uses = {
+                daxa::TaskImageUse<daxa::TaskImageAccess::TRANSFER_WRITE>{task_image.view().view({.base_array_layer = i})},
+            },
+            .task = [this, &loaded_buffers, size_x, size_y, image_id, i](daxa::TaskInterface task_runtime) {
+                auto staging_buffer = daxa_device.create_buffer({
+                    .size = static_cast<uint32_t>(size_x * size_y * 4),
+                    .allocate_info = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM,
+                    .name = "staging_buffer",
+                });
+                auto *buffer_ptr = daxa_device.get_host_address_as<uint8_t>(staging_buffer).value();
+                memcpy(buffer_ptr, loaded_buffers[i], size_x * size_y * 4);
+                auto &cmd_list = task_runtime.get_recorder();
+                cmd_list.pipeline_barrier({
+                    .dst_access = daxa::AccessConsts::TRANSFER_WRITE,
+                });
+                cmd_list.destroy_buffer_deferred(staging_buffer);
+                cmd_list.copy_buffer_to_image({
+                    .buffer = staging_buffer,
+                    .image = image_id,
+                    .image_slice = {
+                        .base_array_layer = i,
+                    },
+                    .image_extent = {static_cast<uint32_t>(size_x), static_cast<uint32_t>(size_y), 1},
+                });
+            },
+            .name = "upload_user_texture",
+        });
+    }
+    temp_task_graph.submit({});
+    temp_task_graph.complete({});
+    temp_task_graph.execute({});
+    task_textures.push_back(task_image);
+    for (auto *loaded_buffer_ptr : loaded_buffers) {
+        stbi_image_free(loaded_buffer_ptr);
+    }
+    return std::pair<daxa::ImageId, size_t>{image_id, task_image_index};
+}
+
+auto ShaderApp::load_volume_texture(std::string id) -> std::pair<daxa::ImageId, size_t> {
+    auto task_image_index = task_textures.size();
+
+    auto num_channels = uint32_t{4};
+    if (id == "4sfGRr") {
+        num_channels = 1;
+    }
+
+    auto random_numbers = std::vector<uint8_t>{};
+    random_numbers.resize(32 * 32 * 32 * num_channels);
+
+    auto rng = std::mt19937_64(std::hash<std::string>{}(id));
+    auto dist = std::uniform_int_distribution<std::mt19937::result_type>(0, 255);
+    for (auto &num : random_numbers) {
+        num = dist(rng) & 0xff;
+    }
+
+    auto const *name = num_channels == 1 ? "gray_rnd_volume" : "rgba_rnd_volume";
+
+    auto task_image = daxa::TaskImage({.name = name});
+    auto image_id = daxa_device.create_image({
+        .dimensions = 3,
+        .format = num_channels == 1 ? daxa::Format::R8_UNORM : daxa::Format::R8G8B8A8_UNORM,
+        .size = {32, 32, 32},
+        .usage = daxa::ImageUsageFlagBits::TRANSFER_DST | daxa::ImageUsageFlagBits::SHADER_SAMPLED,
+        .name = name,
+    });
+    task_image.set_images({.images = std::array{image_id}});
+
+    daxa::TaskGraph temp_task_graph = daxa::TaskGraph({
+        .device = daxa_device,
+        .name = "temp_task_graph",
+    });
+    temp_task_graph.use_persistent_image(task_image);
+    temp_task_graph.add_task({
+        .uses = {
+            daxa::TaskImageUse<daxa::TaskImageAccess::TRANSFER_WRITE>{task_image},
+        },
+        .task = [this, &random_numbers, image_id](daxa::TaskInterface task_runtime) {
+            auto staging_buffer = daxa_device.create_buffer({
+                .size = static_cast<uint32_t>(random_numbers.size()),
+                .allocate_info = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM,
+                .name = "staging_buffer",
+            });
+            auto *buffer_ptr = daxa_device.get_host_address_as<uint8_t>(staging_buffer).value();
+            memcpy(buffer_ptr, random_numbers.data(), random_numbers.size());
+            auto &cmd_list = task_runtime.get_recorder();
+            cmd_list.pipeline_barrier({
+                .dst_access = daxa::AccessConsts::TRANSFER_WRITE,
+            });
+            cmd_list.destroy_buffer_deferred(staging_buffer);
+            cmd_list.copy_buffer_to_image({
+                .buffer = staging_buffer,
+                .image = image_id,
+                .image_extent = {32, 32, 32},
+            });
+        },
+        .name = "upload_user_texture",
+    });
+    temp_task_graph.submit({});
+    temp_task_graph.complete({});
+    temp_task_graph.execute({});
+    task_textures.push_back(task_image);
+
+    return std::pair<daxa::ImageId, size_t>{image_id, task_image_index};
+}
+
 void ShaderApp::load_shadertoy_json(std::filesystem::path const &path) {
     auto json = nlohmann::json::parse(std::ifstream(path));
+
+    if (json.contains("numShaders")) {
+        // Is a "export all shaders" json file. Let's split it up for the user.
+        for (auto &shader : json["shaders"]) {
+            auto filepath = std::string{"shader_"} + std::string{shader["info"]["id"]} + std::string{".json"};
+            auto f = std::ofstream(filepath);
+            f << std::setw(4) << shader;
+        }
+        return;
+    }
 
     auto &renderpasses = json["renderpass"];
 
@@ -551,6 +711,7 @@ void ShaderApp::load_shadertoy_json(std::filesystem::path const &path) {
         auto &outputs = renderpass["outputs"];
         auto &type = renderpass["type"];
 
+        // Skip unknown pass type
         if (type != "image" && type != "buffer" && type != "cubemap") {
             continue;
         }
@@ -559,19 +720,19 @@ void ShaderApp::load_shadertoy_json(std::filesystem::path const &path) {
 
         pipeline_manager.add_virtual_file({
             .name = "iChannel0_decl",
-            .contents = "#define iChannel0 CombinedImageSampler2D(daxa_push_constant.input_images.Channel[0], daxa_push_constant.input_images.Channel_sampler[0])",
+            .contents = "#define iChannel0 CombinedImageSampler2D(daxa_push_constant.input_images.Channel[0], daxa_push_constant.input_images.Channel_sampler[0], 0)",
         });
         pipeline_manager.add_virtual_file({
             .name = "iChannel1_decl",
-            .contents = "#define iChannel1 CombinedImageSampler2D(daxa_push_constant.input_images.Channel[1], daxa_push_constant.input_images.Channel_sampler[1])",
+            .contents = "#define iChannel1 CombinedImageSampler2D(daxa_push_constant.input_images.Channel[1], daxa_push_constant.input_images.Channel_sampler[1], 0)",
         });
         pipeline_manager.add_virtual_file({
             .name = "iChannel2_decl",
-            .contents = "#define iChannel2 CombinedImageSampler2D(daxa_push_constant.input_images.Channel[2], daxa_push_constant.input_images.Channel_sampler[2])",
+            .contents = "#define iChannel2 CombinedImageSampler2D(daxa_push_constant.input_images.Channel[2], daxa_push_constant.input_images.Channel_sampler[2], 0)",
         });
         pipeline_manager.add_virtual_file({
             .name = "iChannel3_decl",
-            .contents = "#define iChannel3 CombinedImageSampler2D(daxa_push_constant.input_images.Channel[3], daxa_push_constant.input_images.Channel_sampler[3])",
+            .contents = "#define iChannel3 CombinedImageSampler2D(daxa_push_constant.input_images.Channel[3], daxa_push_constant.input_images.Channel_sampler[3], 0)",
         });
 
         auto type_json_to_glsl_image_type = [](nlohmann::json &json) -> std::string {
@@ -579,8 +740,19 @@ void ShaderApp::load_shadertoy_json(std::filesystem::path const &path) {
                 return "CombinedImageSampler2D";
             } else if (json == "cubemap") {
                 return "CombinedImageSamplerCube";
+            } else if (json == "volume") {
+                return "CombinedImageSampler3D";
             }
             return "void"; // L
+        };
+
+        auto type_json_to_glsl_image_type_extra = [](nlohmann::json &json) -> std::string {
+            if (json == "buffer" || json == "texture") {
+                return ", 0";
+            } else if (json == "keyboard") {
+                return ", 1";
+            }
+            return "";
         };
 
         auto get_sampler = [](auto const &samplers, nlohmann::json &input) {
@@ -611,8 +783,43 @@ void ShaderApp::load_shadertoy_json(std::filesystem::path const &path) {
 
             auto channel_str = std::to_string(uint32_t{input["channel"]});
             auto image_type = type_json_to_glsl_image_type(type);
+            auto extra = type_json_to_glsl_image_type_extra(type);
 
-            if (type == "buffer" || type == "cubemap") {
+            // Skip unsupported input types
+            // std::cout << type << std::endl;
+            if (type != "image" && type != "buffer" && type != "cubemap" && type != "texture" && type != "keyboard" && type != "volume") {
+                continue;
+            }
+
+            auto load_texture_type = [&](ShaderPassInputType texture_input_type, std::pair<daxa::ImageId, size_t> (*load_function)(void *, std::string const &)) {
+                auto input_copy = ShaderPassInput{
+                    .type = texture_input_type,
+                    .channel = input["channel"],
+                    .sampler = get_sampler(samplers, input),
+                };
+                // TEMPORARY HACK
+                if (input_copy.sampler == samplers[static_cast<size_t>(ShaderToyFilter::MIPMAP) + static_cast<size_t>(ShaderToyWrap::CLAMP) * 3]) {
+                    input_copy.sampler = samplers[static_cast<size_t>(ShaderToyFilter::LINEAR) + static_cast<size_t>(ShaderToyWrap::CLAMP) * 3];
+                }
+                if (input_copy.sampler == samplers[static_cast<size_t>(ShaderToyFilter::MIPMAP) + static_cast<size_t>(ShaderToyWrap::REPEAT) * 3]) {
+                    input_copy.sampler = samplers[static_cast<size_t>(ShaderToyFilter::LINEAR) + static_cast<size_t>(ShaderToyWrap::REPEAT) * 3];
+                }
+                auto path = texture_input_type == ShaderPassInputType::VOLUME_TEXTURE ? std::string{input["id"]} : std::string{input["filepath"]};
+                if (loaded_textures.contains(path)) {
+                    auto &[loaded_texture, task_image_index] = loaded_textures.at(path);
+                    input_copy.index = task_image_index;
+                } else {
+                    auto loaded_result = load_function(this, path);
+                    loaded_textures[path] = loaded_result;
+                    auto &[loaded_texture, task_image_index] = loaded_result;
+                    input_copy.index = task_image_index;
+                }
+                temp_inputs.push_back(input_copy);
+            };
+
+            if (type == "cubemap" && !id_map.contains(input["id"])) {
+                load_texture_type(ShaderPassInputType::CUBE_TEXTURE, [](void *self, std::string const &path) { return static_cast<ShaderApp *>(self)->load_cube_texture(path); });
+            } else if (type == "buffer" || type == "cubemap") {
                 auto input_copy = id_map[input["id"]];
                 input_copy.channel = input["channel"];
                 input_copy.sampler = get_sampler(samplers, input);
@@ -624,28 +831,13 @@ void ShaderApp::load_shadertoy_json(std::filesystem::path const &path) {
                     .sampler = get_sampler(samplers, input),
                 });
             } else if (type == "texture") {
-                auto input_copy = ShaderPassInput{
-                    .type = ShaderPassInputType::TEXTURE,
-                    .channel = input["channel"],
-                    .sampler = get_sampler(samplers, input),
-                };
-                auto path = std::string{input["filepath"]};
-                if (loaded_textures.contains(path)) {
-                    auto &[loaded_texture, task_image_index] = loaded_textures.at(path);
-                    // input_copy.image_id = loaded_texture;
-                    input_copy.index = task_image_index;
-                } else {
-                    auto loaded_result = load_texture(path);
-                    loaded_textures[path] = loaded_result;
-                    auto &[loaded_texture, task_image_index] = loaded_result;
-                    // input_copy.image_id = loaded_texture;
-                    input_copy.index = task_image_index;
-                }
-                temp_inputs.push_back(input_copy);
+                load_texture_type(ShaderPassInputType::TEXTURE, [](void *self, std::string const &path) { return static_cast<ShaderApp *>(self)->load_texture(path); });
+            } else if (type == "volume") {
+                load_texture_type(ShaderPassInputType::VOLUME_TEXTURE, [](void *self, std::string const &id) { return static_cast<ShaderApp *>(self)->load_volume_texture(id); });
             }
             pipeline_manager.add_virtual_file({
                 .name = std::string{"iChannel"} + channel_str + "_decl",
-                .contents = std::string{"#define iChannel"} + channel_str + " " + image_type + "(daxa_push_constant.input_images.Channel[" + channel_str + "], daxa_push_constant.input_images.Channel_sampler[" + channel_str + "])",
+                .contents = std::string{"#define iChannel"} + channel_str + " " + image_type + "(daxa_push_constant.input_images.Channel[" + channel_str + "], daxa_push_constant.input_images.Channel_sampler[" + channel_str + "]" + extra + ")",
             });
         }
 
@@ -691,6 +883,29 @@ void ShaderApp::load_shadertoy_json(std::filesystem::path const &path) {
         }
     }
 
+    {
+        auto mip_sampler0 = samplers[static_cast<size_t>(ShaderToyFilter::MIPMAP) + static_cast<size_t>(ShaderToyWrap::CLAMP) * 3];
+        auto mip_sampler1 = samplers[static_cast<size_t>(ShaderToyFilter::MIPMAP) + static_cast<size_t>(ShaderToyWrap::REPEAT) * 3];
+        auto pass_needs_mipmaps = [&](auto &pass) {
+            for (auto &input : pass.inputs) {
+                if (input.sampler == mip_sampler0 || input.sampler == mip_sampler1) {
+                    switch (input.type) {
+                    case ShaderPassInputType::BUFFER: buffer_passes[input.index].needs_mipmap = true; break;
+                    case ShaderPassInputType::CUBE: cube_passes[input.index].needs_mipmap = true; break;
+                    default: break;
+                    }
+                }
+            }
+        };
+        for (auto &pass : buffer_passes) {
+            pass_needs_mipmaps(pass);
+        }
+        for (auto &pass : cube_passes) {
+            pass_needs_mipmaps(pass);
+        }
+        pass_needs_mipmaps(image_pass);
+    }
+
     reset_input();
 }
 
@@ -732,7 +947,7 @@ auto ShaderApp::record_main_task_graph() -> daxa::TaskGraph {
         .name = "input_buffer",
     });
     auto task_keyboard_image = task_graph.create_transient_image({
-        .format = daxa::Format::R8_SINT,
+        .format = daxa::Format::R8_UINT,
         .size = {256, 3, 1},
         .name = "keyboard_image",
     });
@@ -778,7 +993,10 @@ auto ShaderApp::record_main_task_graph() -> daxa::TaskGraph {
         case ShaderPassInputType::BUFFER: return buffer_passes[input.index].recording_buffer_view;
         case ShaderPassInputType::CUBE: return cube_passes[input.index].recording_buffer_view;
         case ShaderPassInputType::KEYBOARD: return task_keyboard_image;
-        case ShaderPassInputType::TEXTURE: return task_textures[input.index];
+        case ShaderPassInputType::TEXTURE:
+        case ShaderPassInputType::CUBE_TEXTURE:
+        case ShaderPassInputType::VOLUME_TEXTURE:
+            return task_textures[input.index];
         }
     };
 
@@ -786,9 +1004,11 @@ auto ShaderApp::record_main_task_graph() -> daxa::TaskGraph {
         auto view = get_resource_view(input);
         switch (input.type) {
         case ShaderPassInputType::BUFFER: return view.view({.level_count = MAX_MIP});
-        case ShaderPassInputType::CUBE: return view.view({.level_count = 1, .layer_count = 6});
-        case ShaderPassInputType::KEYBOARD: return view;
-        case ShaderPassInputType::TEXTURE: return view;
+        case ShaderPassInputType::CUBE: return view.view({.layer_count = 6});
+        case ShaderPassInputType::KEYBOARD:
+        case ShaderPassInputType::TEXTURE:
+        case ShaderPassInputType::VOLUME_TEXTURE: return view;
+        case ShaderPassInputType::CUBE_TEXTURE: return view.view({.layer_count = 6});
         }
     };
 
@@ -830,8 +1050,10 @@ auto ShaderApp::record_main_task_graph() -> daxa::TaskGraph {
         auto uses = std::vector<daxa::GenericTaskResourceUse>{};
         uses.push_back(daxa::TaskBufferUse<daxa::TaskBufferAccess::FRAGMENT_SHADER_READ>{task_input_buffer});
         for (auto const &input : pass.inputs) {
-            if (input.type == ShaderPassInputType::CUBE) {
+            if (input.type == ShaderPassInputType::CUBE || input.type == ShaderPassInputType::CUBE_TEXTURE) {
                 uses.push_back(daxa::TaskImageUse<daxa::TaskImageAccess::FRAGMENT_SHADER_SAMPLED, daxa::ImageViewType::CUBE>{get_resource_view_slice(input)});
+            } else if (input.type == ShaderPassInputType::VOLUME_TEXTURE) {
+                uses.push_back(daxa::TaskImageUse<daxa::TaskImageAccess::FRAGMENT_SHADER_SAMPLED, daxa::ImageViewType::REGULAR_3D>{get_resource_view_slice(input)});
             } else {
                 uses.push_back(daxa::TaskImageUse<daxa::TaskImageAccess::FRAGMENT_SHADER_SAMPLED, daxa::ImageViewType::REGULAR_2D>{get_resource_view_slice(input)});
             }
@@ -880,8 +1102,10 @@ auto ShaderApp::record_main_task_graph() -> daxa::TaskGraph {
         auto uses = std::vector<daxa::GenericTaskResourceUse>{};
         uses.push_back(daxa::TaskBufferUse<daxa::TaskBufferAccess::FRAGMENT_SHADER_READ>{task_input_buffer});
         for (auto const &input : pass.inputs) {
-            if (input.type == ShaderPassInputType::CUBE) {
+            if (input.type == ShaderPassInputType::CUBE || input.type == ShaderPassInputType::CUBE_TEXTURE) {
                 uses.push_back(daxa::TaskImageUse<daxa::TaskImageAccess::FRAGMENT_SHADER_SAMPLED, daxa::ImageViewType::CUBE>{get_resource_view_slice(input)});
+            } else if (input.type == ShaderPassInputType::VOLUME_TEXTURE) {
+                uses.push_back(daxa::TaskImageUse<daxa::TaskImageAccess::FRAGMENT_SHADER_SAMPLED, daxa::ImageViewType::REGULAR_3D>{get_resource_view_slice(input)});
             } else {
                 uses.push_back(daxa::TaskImageUse<daxa::TaskImageAccess::FRAGMENT_SHADER_SAMPLED, daxa::ImageViewType::REGULAR_2D>{get_resource_view_slice(input)});
             }
@@ -925,8 +1149,10 @@ auto ShaderApp::record_main_task_graph() -> daxa::TaskGraph {
         auto uses = std::vector<daxa::GenericTaskResourceUse>{};
         uses.push_back(daxa::TaskBufferUse<daxa::TaskBufferAccess::FRAGMENT_SHADER_READ>{task_input_buffer});
         for (auto const &input : pass.inputs) {
-            if (input.type == ShaderPassInputType::CUBE) {
+            if (input.type == ShaderPassInputType::CUBE || input.type == ShaderPassInputType::CUBE_TEXTURE) {
                 uses.push_back(daxa::TaskImageUse<daxa::TaskImageAccess::FRAGMENT_SHADER_SAMPLED, daxa::ImageViewType::CUBE>{get_resource_view_slice(input)});
+            } else if (input.type == ShaderPassInputType::VOLUME_TEXTURE) {
+                uses.push_back(daxa::TaskImageUse<daxa::TaskImageAccess::FRAGMENT_SHADER_SAMPLED, daxa::ImageViewType::REGULAR_3D>{get_resource_view_slice(input)});
             } else {
                 uses.push_back(daxa::TaskImageUse<daxa::TaskImageAccess::FRAGMENT_SHADER_SAMPLED, daxa::ImageViewType::REGULAR_2D>{get_resource_view_slice(input)});
             }
