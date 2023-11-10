@@ -253,7 +253,7 @@ auto main() -> int {
 using namespace std::chrono_literals;
 
 ShaderApp::ShaderApp()
-    : daxa_instance{daxa::create_instance({})},
+    : daxa_instance{daxa::create_instance({.flags = {}})},
       daxa_device{daxa_instance.create_device({.name = "device"})},
       pipeline_manager{[this]() {
           auto result = daxa::PipelineManager({
@@ -869,6 +869,8 @@ void ShaderApp::load_shadertoy_json(std::filesystem::path const &path) {
             .name = std::string{type} + " pass " + std::string{name},
         });
         if (compile_result.is_err() || !compile_result.value()->is_valid()) {
+            std::cerr << common_code << std::endl;
+            std::cerr << "----------------\n";
             std::cerr << user_code.contents << std::endl;
             std::cerr << compile_result.message() << std::endl;
             return;
@@ -1216,16 +1218,16 @@ auto ShaderApp::record_main_task_graph() -> daxa::TaskGraph {
         .name = "blit_image_to_image",
     });
 
-    // task_graph.add_task({
-    //     .uses = {
-    //         daxa::TaskImageUse<daxa::TaskImageAccess::COLOR_ATTACHMENT, daxa::ImageViewType::REGULAR_2D>{task_swapchain_image},
-    //     },
-    //     .task = [this](daxa::TaskInterface ti) {
-    //         auto &recorder = ti.get_recorder();
-    //         ui.render(recorder, ti.uses[task_swapchain_image].image());
-    //     },
-    //     .name = "ui draw",
-    // });
+    task_graph.add_task({
+        .uses = {
+            daxa::TaskImageUse<daxa::TaskImageAccess::COLOR_ATTACHMENT, daxa::ImageViewType::REGULAR_2D>{task_swapchain_image},
+        },
+        .task = [this](daxa::TaskInterface ti) {
+            auto &recorder = ti.get_recorder();
+            ui.render(recorder, ti.uses[task_swapchain_image].image());
+        },
+        .name = "ui draw",
+    });
     task_graph.submit({});
     task_graph.present({});
     task_graph.complete({});

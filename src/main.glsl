@@ -3,32 +3,27 @@
 #if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_VERTEX
 
 void main() {
-    vec2 positions[3];
-    positions[0] = vec2(-1, -1);
-    positions[1] = vec2(+3, -1);
-    positions[2] = vec2(-1, +3);
-    gl_Position = vec4(positions[gl_VertexIndex], 0, 1);
+    switch (gl_VertexIndex) {
+    case 0: gl_Position = vec4(-1, -1, 0, 1); break;
+    case 1: gl_Position = vec4(+3, -1, 0, 1); break;
+    case 2: gl_Position = vec4(-1, +3, 0, 1); break;
+    }
 }
 
 #elif DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_FRAGMENT
 
 // clang-format off
-#define iResolution          deref(daxa_push_constant.gpu_input).Resolution
-#define iTime                deref(daxa_push_constant.gpu_input).Time
-#define iTimeDelta           deref(daxa_push_constant.gpu_input).TimeDelta
-#define iFrameRate           deref(daxa_push_constant.gpu_input).FrameRate
-#define iFrame               deref(daxa_push_constant.gpu_input).Frame
-#define iChannelTime         deref(daxa_push_constant.gpu_input).ChannelTime
-#define iChannelResolution   deref(daxa_push_constant.gpu_input).ChannelResolution
-#define iMouse               deref(daxa_push_constant.gpu_input).Mouse
-#define iDate                deref(daxa_push_constant.gpu_input).Date
-#define iSampleRate          deref(daxa_push_constant.gpu_input).SampleRate
+daxa_f32vec3 iResolution;
+daxa_f32     iTime;
+daxa_f32     iTimeDelta;
+daxa_f32     iFrameRate;
+daxa_i32     iFrame;
+daxa_f32     iChannelTime[4];
+daxa_f32vec3 iChannelResolution[4];
+daxa_f32vec4 iMouse;
+daxa_f32vec4 iDate;
+daxa_f32     iSampleRate;
 // clang-format on
-
-#if CUBEMAP
-#undef iResolution
-#define iResolution vec3(1024, 1024, 1)
-#endif
 
 // overloads
 vec4 texture(CombinedImageSampler2D c, vec2 p) {
@@ -111,9 +106,31 @@ ivec4 textureGrad(CombinedImageSampler2D_int c, vec2 p, vec2 dTdx, vec2 dTdy) { 
 
 #include <user_code>
 
-layout(location = 0) out vec4 color;
+layout(location = 0) out vec4 _daxa_color_output;
 
 void main() {
+    // clang-format off
+    iResolution           = deref(daxa_push_constant.gpu_input).Resolution;
+    iTime                 = deref(daxa_push_constant.gpu_input).Time;
+    iTimeDelta            = deref(daxa_push_constant.gpu_input).TimeDelta;
+    iFrameRate            = deref(daxa_push_constant.gpu_input).FrameRate;
+    iFrame                = deref(daxa_push_constant.gpu_input).Frame;
+    iChannelTime[0]       = deref(daxa_push_constant.gpu_input).ChannelTime[0];
+    iChannelTime[1]       = deref(daxa_push_constant.gpu_input).ChannelTime[1];
+    iChannelTime[2]       = deref(daxa_push_constant.gpu_input).ChannelTime[2];
+    iChannelTime[3]       = deref(daxa_push_constant.gpu_input).ChannelTime[3];
+    iChannelResolution[0] = deref(daxa_push_constant.gpu_input).ChannelResolution[0];
+    iChannelResolution[1] = deref(daxa_push_constant.gpu_input).ChannelResolution[1];
+    iChannelResolution[2] = deref(daxa_push_constant.gpu_input).ChannelResolution[2];
+    iChannelResolution[3] = deref(daxa_push_constant.gpu_input).ChannelResolution[3];
+    iMouse                = deref(daxa_push_constant.gpu_input).Mouse;
+    iDate                 = deref(daxa_push_constant.gpu_input).Date;
+    iSampleRate           = deref(daxa_push_constant.gpu_input).SampleRate;
+    // clang-format on
+#if CUBEMAP
+    iResolution = vec3(1024, 1024, 1);
+#endif
+
     vec4 frag_color = vec4(0);
 
 #if CUBEMAP
@@ -146,7 +163,7 @@ void main() {
 #endif
 #endif
 
-    color = frag_color;
+    _daxa_color_output = frag_color;
 }
 
 #endif
