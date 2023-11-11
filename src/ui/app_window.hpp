@@ -13,6 +13,13 @@ struct AppWindow {
     daxa::Swapchain swapchain{};
     daxa_i32vec2 size{};
 
+    struct FullscreenCache {
+        daxa_i32vec2 pos{};
+        daxa_i32vec2 size{};
+    };
+
+    FullscreenCache fullscreen_cache{};
+
     int glfw_active_modifiers{};
     Rml::Context *rml_context{};
 
@@ -31,4 +38,5 @@ struct AppWindow {
     explicit AppWindow(daxa::Device device, daxa_i32vec2 size);
 
     void update();
+    void set_fullscreen(bool is_fullscreen);
 };

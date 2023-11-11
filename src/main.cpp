@@ -1,3 +1,4 @@
+#include <GLFW/glfw3.h>
 #include <cstdint>
 #include <daxa/daxa.hpp>
 #include <daxa/utils/pipeline_manager.hpp>
@@ -41,7 +42,6 @@ struct ShaderPassInput {
     ShaderPassInputType type{};
     size_t index{};
     uint32_t channel{};
-    // daxa::ImageId image_id{};
     daxa::SamplerId sampler{};
 };
 
@@ -214,7 +214,12 @@ struct ShaderApp {
     GpuInput gpu_input{};
     Clock::time_point start{};
     Clock::time_point prev_time{};
+    Clock::time_point pause_time{};
+    Clock::time_point prev_fps_time{};
+    size_t fps_count{};
+    float last_known_fps{};
     bool mouse_enabled{};
+    bool reset{};
     KeyboardInput keyboard_input{};
     daxa_f32vec2 mouse_pos{};
     std::unordered_map<std::string, std::pair<daxa::ImageId, size_t>> loaded_textures{};
@@ -253,8 +258,8 @@ auto main() -> int {
 using namespace std::chrono_literals;
 
 ShaderApp::ShaderApp()
-    : daxa_instance{daxa::create_instance({.flags = {}})},
-      daxa_device{daxa_instance.create_device({.name = "device"})},
+    : daxa_instance{daxa::create_instance({})},
+      daxa_device{daxa_instance.create_device({.flags = {}, .name = "device"})},
       pipeline_manager{[this]() {
           auto result = daxa::PipelineManager({
               .device = daxa_device,
@@ -272,6 +277,9 @@ ShaderApp::ShaderApp()
       task_swapchain_image{daxa::TaskImageInfo{.swapchain_image = true}} {
 
     ui.app_windows[0].on_resize = [&]() {
+        if (ui.app_windows[0].size.x <= 0 || ui.app_windows[0].size.y <= 0) {
+            return;
+        }
         main_task_graph = record_main_task_graph();
         // reset_input();
         render();
@@ -282,13 +290,16 @@ ShaderApp::ShaderApp()
     };
     ui.app_windows[0].on_mouse_move = [&](float px, float py) {
         mouse_pos.x = px;
-        mouse_pos.y = static_cast<float>(ui.app_windows[0].size.y) - py;
+        mouse_pos.y = static_cast<float>(ui.app_windows[0].size.y) - py - 1.0f;
         if (mouse_enabled) {
             gpu_input.Mouse.x = mouse_pos.x;
             gpu_input.Mouse.y = mouse_pos.y;
         }
     };
     ui.app_windows[0].on_mouse_button = [&](int32_t button_id, int32_t action) {
+        if (mouse_pos.y < 24) {
+            return;
+        }
         if (button_id == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
             gpu_input.Mouse.x = mouse_pos.x;
             gpu_input.Mouse.y = mouse_pos.y;
@@ -317,11 +328,16 @@ ShaderApp::ShaderApp()
         case GLFW_KEY_DOWN:
             transformed_key_id = 40;
             break;
-            // case GLFW_KEY_F11:
-            //     if (action == GLFW_PRESS) {
-            //         toggle_fullscreen();
-            //     }
-            //     break;
+        case GLFW_KEY_F11:
+            if (action == GLFW_PRESS) {
+                ui.toggle_fullscreen();
+            }
+            break;
+        case GLFW_KEY_ESCAPE:
+            if (action == GLFW_PRESS && ui.is_fullscreen) {
+                ui.toggle_fullscreen();
+            }
+            break;
         default:
             break;
         }
@@ -335,6 +351,31 @@ ShaderApp::ShaderApp()
             keyboard_input.keypress[static_cast<size_t>(transformed_key_id)] = 1;
             keyboard_input.toggles[static_cast<size_t>(transformed_key_id)] = 1 - keyboard_input.toggles[static_cast<size_t>(transformed_key_id)];
         }
+    };
+
+    ui.on_reset = [&]() {
+        reset_input();
+        reset = true;
+    };
+
+    ui.on_toggle_pause = [&](bool is_paused) {
+        if (is_paused) {
+            pause_time = Clock::now();
+            reset = false;
+        } else if (reset) {
+            auto now = Clock::now();
+            start = now;
+            prev_time = now;
+        } else {
+            auto now = Clock::now();
+            start += (now - pause_time);
+            prev_time += (now - pause_time);
+        }
+    };
+
+    ui.on_toggle_fullscreen = [&](bool is_fullscreen) {
+        ui.app_windows[0].set_fullscreen(is_fullscreen);
+        main_task_graph = record_main_task_graph();
     };
 
     load_shadertoy_json("shader.json");
@@ -403,13 +444,22 @@ ShaderApp::~ShaderApp() {
 }
 
 void ShaderApp::update() {
-    ui.update();
-
     auto now = Clock::now();
-    gpu_input.Time = std::chrono::duration<daxa_f32>(now - start).count();
-    gpu_input.TimeDelta = std::max(std::numeric_limits<float>::min(), std::chrono::duration<daxa_f32>(now - prev_time).count());
-    gpu_input.FrameRate = 1.0f / gpu_input.TimeDelta;
-    prev_time = now;
+
+    if (!ui.paused) {
+        gpu_input.Time = std::chrono::duration<daxa_f32>(now - start).count();
+        gpu_input.TimeDelta = std::max(std::numeric_limits<float>::min(), std::chrono::duration<daxa_f32>(now - prev_time).count());
+        gpu_input.FrameRate = 1.0f / gpu_input.TimeDelta;
+        prev_time = now;
+        if (now - prev_fps_time > 0.5s) {
+            prev_fps_time = now;
+            last_known_fps = static_cast<float>(fps_count) / 0.5f;
+            fps_count = 0;
+        }
+        ++fps_count;
+    }
+
+    ui.update(gpu_input.Time, last_known_fps);
 }
 
 void ShaderApp::reset_input() {
@@ -420,6 +470,9 @@ void ShaderApp::reset_input() {
     gpu_input.TimeDelta = std::max(std::numeric_limits<float>::min(), std::chrono::duration<daxa_f32>(now - prev_time).count());
     gpu_input.FrameRate = 1.0f / gpu_input.TimeDelta;
     prev_time = now;
+    prev_fps_time = now;
+    fps_count = 0;
+    last_known_fps = 1.0f;
     gpu_input.Mouse = {0.0f, 0.0f, -1.0f, -1.0f};
 }
 
@@ -437,6 +490,9 @@ void ShaderApp::render() {
     };
 
     auto &app_window = ui.app_windows[0];
+    if (app_window.size.x <= 0 || app_window.size.y <= 0) {
+        return;
+    }
     auto const swapchain_image = app_window.swapchain.acquire_next_image();
     if (swapchain_image.is_empty()) {
         return;
@@ -467,7 +523,7 @@ auto ShaderApp::load_texture(std::string path) -> std::pair<daxa::ImageId, size_
     int32_t size_y = 0;
     int32_t channel_n = 0;
     auto task_image = daxa::TaskImage({.name = path});
-    replace_all(path, "/media/a/", "media/");
+    replace_all(path, "/media/a/", "media/images/");
     stbi_set_flip_vertically_on_load(1);
     auto *temp_data = stbi_load(path.c_str(), &size_x, &size_y, &channel_n, 4);
     auto image_id = daxa_device.create_image({
@@ -786,7 +842,6 @@ void ShaderApp::load_shadertoy_json(std::filesystem::path const &path) {
             auto extra = type_json_to_glsl_image_type_extra(type);
 
             // Skip unsupported input types
-            // std::cout << type << std::endl;
             if (type != "image" && type != "buffer" && type != "cubemap" && type != "texture" && type != "keyboard" && type != "volume") {
                 continue;
             }
@@ -852,7 +907,6 @@ void ShaderApp::load_shadertoy_json(std::filesystem::path const &path) {
         auto pass_format = daxa::Format::R32G32B32A32_SFLOAT;
         if (type == "image") {
             pass_format = daxa::Format::R16G16B16A16_SFLOAT;
-            // pass_format = ui.app_windows[0].swapchain.get_format();
             extra_defines.push_back({.name = "MAIN_IMAGE", .value = "1"});
         } else if (type == "cubemap") {
             pass_format = daxa::Format::R16G16B16A16_SFLOAT;
@@ -1218,16 +1272,18 @@ auto ShaderApp::record_main_task_graph() -> daxa::TaskGraph {
         .name = "blit_image_to_image",
     });
 
-    task_graph.add_task({
-        .uses = {
-            daxa::TaskImageUse<daxa::TaskImageAccess::COLOR_ATTACHMENT, daxa::ImageViewType::REGULAR_2D>{task_swapchain_image},
-        },
-        .task = [this](daxa::TaskInterface ti) {
-            auto &recorder = ti.get_recorder();
-            ui.render(recorder, ti.uses[task_swapchain_image].image());
-        },
-        .name = "ui draw",
-    });
+    if (!ui.is_fullscreen) {
+        task_graph.add_task({
+            .uses = {
+                daxa::TaskImageUse<daxa::TaskImageAccess::COLOR_ATTACHMENT, daxa::ImageViewType::REGULAR_2D>{task_swapchain_image},
+            },
+            .task = [this](daxa::TaskInterface ti) {
+                auto &recorder = ti.get_recorder();
+                ui.render(recorder, ti.uses[task_swapchain_image].image());
+            },
+            .name = "ui draw",
+        });
+    }
     task_graph.submit({});
     task_graph.present({});
     task_graph.complete({});

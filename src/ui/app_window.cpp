@@ -182,10 +182,12 @@ AppWindow::AppWindow(daxa::Device device, daxa_i32vec2 size)
             }
         });
 
+    glfwSetWindowSizeLimits(this->glfw_window.get(), 390, 24, GLFW_DONT_CARE, GLFW_DONT_CARE);
+
     this->swapchain = device.create_swapchain({
         .native_window = get_native_handle(this->glfw_window.get()),
         .native_window_platform = get_native_platform(this->glfw_window.get()),
-        .present_mode = daxa::PresentMode::IMMEDIATE,
+        .present_mode = daxa::PresentMode::FIFO,
         .image_usage = daxa::ImageUsageFlagBits::TRANSFER_DST,
         .max_allowed_frames_in_flight = 1,
         .name = "AppWindowSwapchain",
@@ -195,4 +197,16 @@ AppWindow::AppWindow(daxa::Device device, daxa_i32vec2 size)
 void AppWindow::update() {
     glfwSetWindowUserPointer(this->glfw_window.get(), this);
     glfwPollEvents();
+}
+
+void AppWindow::set_fullscreen(bool is_fullscreen) {
+    auto *monitor = glfwGetPrimaryMonitor();
+    if (is_fullscreen) {
+        GLFWvidmode const *mode = glfwGetVideoMode(monitor);
+        glfwGetWindowPos(glfw_window.get(), &fullscreen_cache.pos.x, &fullscreen_cache.pos.y);
+        fullscreen_cache.size = size;
+        glfwSetWindowMonitor(glfw_window.get(), monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+    } else {
+        glfwSetWindowMonitor(glfw_window.get(), nullptr, fullscreen_cache.pos.x, fullscreen_cache.pos.y, fullscreen_cache.size.x, fullscreen_cache.size.y, GLFW_DONT_CARE);
+    }
 }

@@ -1,13 +1,33 @@
 #include <RmlUi/Core.h>
 #include <RmlUi/Debugger.h>
+#include <fmt/format.h>
 
 #include "app_ui.hpp"
 
 #include <daxa/command_recorder.hpp>
+#include <iostream>
+#include <cassert>
 
 namespace {
+    Rml::Element *time_element{};
+    Rml::Element *fps_element{};
+    Rml::Element *resolution_element{};
+    Rml::Element *pause_element{};
+
+    void load_page(Rml::Context *context, Rml::String const &src_url) {
+        auto *document = context->LoadDocument(src_url);
+        document->Show();
+
+        if (src_url == "src/ui/main.rml") {
+            time_element = document->GetElementById("time");
+            fps_element = document->GetElementById("fps");
+            resolution_element = document->GetElementById("resolution");
+            pause_element = document->GetElementById("pause");
+        }
+    }
+
     void load_fonts() {
-        const Rml::String directory = "/home/nellfs/Projects/gvox-editor/fonts/";
+        const Rml::String directory = "media/fonts/";
 
         struct FontFace {
             const char *filename;
@@ -54,16 +74,15 @@ namespace {
                 auto docs_to_reload = std::vector<std::pair<Rml::String, Rml::ElementDocument *>>{};
                 for (int i = 0; i < context->GetNumDocuments(); i++) {
                     Rml::ElementDocument *document = context->GetDocument(i);
-                    const Rml::String &src = document->GetSourceURL();
+                    Rml::String const &src = document->GetSourceURL();
                     if (src.size() > 4 && src.substr(src.size() - 4) == ".rml") {
-                        docs_to_reload.push_back({src, document});
+                        docs_to_reload.emplace_back(src, document);
                         document->ReloadStyleSheet();
                     }
                 }
                 for (auto const &[src_url, document] : docs_to_reload) {
                     document->Close();
-                    auto *new_document = context->LoadDocument(src_url);
-                    new_document->Show();
+                    load_page(context, src_url);
                 }
             } else {
                 result = true;
@@ -72,7 +91,35 @@ namespace {
 
         return result;
     }
+
+    class Event : public Rml::EventListener {
+      public:
+        explicit Event(Rml::String value) : value(std::move(value)) {}
+
+        void ProcessEvent(Rml::Event & /*event*/) override {
+            if (value == "reset") {
+                AppUi::s_instance->on_reset();
+            } else if (value == "pause") {
+                AppUi::s_instance->paused = !AppUi::s_instance->paused;
+                if (AppUi::s_instance->paused) {
+                    pause_element->SetAttribute("src", "../../media/icons/play.png");
+                } else {
+                    pause_element->SetAttribute("src", "../../media/icons/pause.png");
+                }
+                AppUi::s_instance->on_toggle_pause(AppUi::s_instance->paused);
+            } else if (value == "fullscreen") {
+                AppUi::s_instance->toggle_fullscreen();
+            }
+        }
+
+        void OnDetach(Rml::Element * /*element*/) override { delete this; }
+
+      private:
+        Rml::String value;
+    };
 } // namespace
+
+auto EventInstancer::InstanceEventListener(const Rml::String &value, Rml::Element * /*element*/) -> Rml::EventListener * { return new Event(value); }
 
 AppUi::AppUi(daxa::Device device)
     : app_windows([&]() {
@@ -80,6 +127,9 @@ AppUi::AppUi(daxa::Device device)
         result.emplace_back(device, daxa_i32vec2{1280, 720});
         return result; }()),
       render_interface(device, app_windows[0].swapchain.get_format()) {
+
+    assert(s_instance == nullptr);
+    s_instance = this;
 
     auto &app_window = app_windows[0];
     app_window.on_close = [&]() { should_close.store(true); };
@@ -97,31 +147,39 @@ AppUi::AppUi(daxa::Device device)
     app_window.rml_context = rml_context;
 
     Rml::Debugger::Initialise(rml_context);
+    Rml::Factory::RegisterEventListenerInstancer(&event_instancer);
 
-    // Set up data bindings to synchronize application data.
-    if (Rml::DataModelConstructor constructor = rml_context->CreateDataModel("animals")) {
-        constructor.Bind("show_text", &show_text);
-        constructor.Bind("animal", &animal);
-    }
-
-    Rml::ElementDocument *document = rml_context->LoadDocument("src/ui/hello_world.rml");
-    document->Show();
+    load_page(rml_context, "src/ui/main.rml");
 }
 
 AppUi::~AppUi() {
     Rml::Shutdown();
 }
 
-void AppUi::update() {
+void AppUi::update(float time, float fps) {
     for (auto &app_window : app_windows) {
         app_window.key_down_callback = key_down_callback;
         app_window.update();
     }
+
+    auto time_str = fmt::format("{:.2f}", time);
+    time_element->SetInnerRML(time_str);
+
+    auto fps_str = fmt::format("{:.1f} fps", fps);
+    fps_element->SetInnerRML(fps_str);
 }
 
 void AppUi::render(daxa::CommandRecorder &recorder, daxa::ImageId target_image) {
+    auto resolution_str = fmt::format("{} x {}", app_windows[0].size.x, app_windows[0].size.y);
+    resolution_element->SetInnerRML(resolution_str);
+
     rml_context->Update();
     render_interface.begin_frame(target_image, recorder);
     rml_context->Render();
     render_interface.end_frame(target_image, recorder);
+}
+
+void AppUi::toggle_fullscreen() {
+    is_fullscreen = !is_fullscreen;
+    on_toggle_fullscreen(is_fullscreen);
 }
