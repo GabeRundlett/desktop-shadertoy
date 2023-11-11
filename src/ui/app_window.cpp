@@ -33,7 +33,7 @@ namespace {
         return glfwCreateWindow(
             static_cast<int32_t>(size.x),
             static_cast<int32_t>(size.y),
-            "Desktop ShaderToy", nullptr, nullptr);
+            "Desktop Shadertoy", nullptr, nullptr);
     }
 } // namespace
 

@@ -7,7 +7,7 @@
 
 namespace {
     void load_fonts() {
-        const Rml::String directory = "C:/dev/downloads/RmlUi/Samples/assets/";
+        const Rml::String directory = "/home/nellfs/Projects/gvox-editor/fonts/";
 
         struct FontFace {
             const char *filename;
@@ -51,12 +51,19 @@ namespace {
             }
         } else {
             if (key == Rml::Input::KI_R && ((key_modifier & Rml::Input::KM_CTRL) != 0)) {
+                auto docs_to_reload = std::vector<std::pair<Rml::String, Rml::ElementDocument *>>{};
                 for (int i = 0; i < context->GetNumDocuments(); i++) {
                     Rml::ElementDocument *document = context->GetDocument(i);
                     const Rml::String &src = document->GetSourceURL();
                     if (src.size() > 4 && src.substr(src.size() - 4) == ".rml") {
+                        docs_to_reload.push_back({src, document});
                         document->ReloadStyleSheet();
                     }
+                }
+                for (auto const &[src_url, document] : docs_to_reload) {
+                    document->Close();
+                    auto *new_document = context->LoadDocument(src_url);
+                    new_document->Show();
                 }
             } else {
                 result = true;
@@ -99,11 +106,6 @@ AppUi::AppUi(daxa::Device device)
 
     Rml::ElementDocument *document = rml_context->LoadDocument("src/ui/hello_world.rml");
     document->Show();
-
-    // Replace and style some text in the loaded document.
-    Rml::Element *element = document->GetElementById("world");
-    element->SetInnerRML(reinterpret_cast<const char *>(u8"🌍"));
-    element->SetProperty("font-size", "1.5em");
 }
 
 AppUi::~AppUi() {

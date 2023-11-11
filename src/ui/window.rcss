@@ -1,43 +1,79 @@
 body {
     font-family: LatoLatin;
     font-size: 18px;
-    color: #02475e;
-    background: #fefecc;
-    text-align: center;
-    padding: 2em 1em;
+    width: 100%;
+    height: 100%;
+}
+
+#screen {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    height: 100vh;
+}
+
+#canvas {
+    flex: 1;
+    width: 100vw;
+}
+
+#bottom-bar {
+    color: black;
+    font: bold;
+    width: 100%;
+    height: 22px;
+    padding-top: 1px;
+    padding-bottom: 1px;
+    background-color: white;
+}
+
+#reset:hover,
+#pause:hover,
+#fullscreen:hover {
+    top: 0px;
+    margin-left: -1px;
+    margin-right: -1px;
+    border: 1px black;
+}
+
+#reset,
+#pause,
+#fullscreen {
     position: absolute;
-    border: 2px #ccc;
-    width: 500px;
-    height: 200px;
-    margin: auto;
+    top: 1px;
 }
 
-h1 {
-    color: #f6470a;
-    font-size: 1.5em;
-    font-weight: bold;
-    margin-bottom: 0.7em;
+#reset {
+    left: 16px;
 }
 
-p {
-    margin: 0.7em 0;
+#pause {
+    left: 44px;
 }
 
-input.text {
-    background-color: #fff;
-    color: #555;
-    border: 2px #999;
-    padding: 5px;
-    tab-index: auto;
-    cursor: text;
-    box-sizing: border-box;
-    width: 200px;
-    font-size: 0.9em;
+#fullscreen {
+    right: 16px;
 }
 
-
-#rifm_logo {
+#time,
+#fps,
+#resolution {
     position: absolute;
-    left: 25dp;
-    top: 25dp;
+    top: 3px;
+}
+
+#time {
+    left: 88px;
+}
+
+#fps {
+    left: 150px;
+}
+
+#resolution {
+    left: 250px;
+}
+
+div {
+    display: block;
 }
