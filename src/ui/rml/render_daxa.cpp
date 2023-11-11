@@ -68,6 +68,7 @@ RenderInterface_Daxa::RenderInterface_Daxa(daxa::Device device, daxa::Format for
         .shader_compile_options = {
             .root_paths = {
                 DAXA_SHADER_INCLUDE_DIR,
+                "src",
             },
             .language = daxa::ShaderLanguage::GLSL,
         },
@@ -133,7 +134,10 @@ RenderInterface_Daxa::RenderInterface_Daxa(daxa::Device device, daxa::Format for
         .name = "imgui_pipeline",
     });
 
-    assert(compile_result.is_ok());
+    if (!compile_result.is_ok()) {
+        std::cerr << "Failed to create the rml daxa raster pipeline. This should never happen, contact Gabe Rundlett" << std::endl;
+        std::terminate();
+    }
 
     raster_pipeline = compile_result.value();
 

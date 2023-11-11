@@ -10,6 +10,8 @@
 #endif
 #include <GLFW/glfw3native.h>
 
+#include <stb_image.h>
+
 auto get_native_handle(GLFWwindow *glfw_window_ptr) -> daxa::NativeWindowHandle {
 #if defined(_WIN32)
     return glfwGetWin32Window(glfw_window_ptr);
@@ -183,6 +185,11 @@ AppWindow::AppWindow(daxa::Device device, daxa_i32vec2 size)
         });
 
     glfwSetWindowSizeLimits(this->glfw_window.get(), 390, 24, GLFW_DONT_CARE, GLFW_DONT_CARE);
+
+    auto icon_image = GLFWimage{};
+    icon_image.pixels = stbi_load("appicon.png", &icon_image.width, &icon_image.height, nullptr, 4);
+    glfwSetWindowIcon(this->glfw_window.get(), 1, &icon_image);
+    stbi_image_free(icon_image.pixels);
 
     this->swapchain = device.create_swapchain({
         .native_window = get_native_handle(this->glfw_window.get()),

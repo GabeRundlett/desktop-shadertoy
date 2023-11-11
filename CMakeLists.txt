@@ -30,3 +30,16 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${Stb_INCLUDE_DIR}
     "${CMAKE_CURRENT_LIST_DIR}/src"
 )
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    configure_file("packaging/main.rc.in" "${CMAKE_BINARY_DIR}/main.rc")
+    target_sources(${PROJECT_NAME} PRIVATE "${CMAKE_BINARY_DIR}/main.rc")
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        target_link_options(${PROJECT_NAME} PRIVATE "-Wl,/ENTRY:mainCRTStartup,/SUBSYSTEM:WINDOWS")
+    else()
+        target_link_options(${PROJECT_NAME} PRIVATE /ENTRY:mainCRTStartup /SUBSYSTEM:WINDOWS)
+    endif()
+    target_link_libraries(${PROJECT_NAME} PRIVATE Dwmapi)
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/cmake/packaging.cmake")

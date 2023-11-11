@@ -378,7 +378,7 @@ ShaderApp::ShaderApp()
         main_task_graph = record_main_task_graph();
     };
 
-    load_shadertoy_json("shader.json");
+    load_shadertoy_json("default-shader.json");
     main_task_graph = record_main_task_graph();
 
     reset_input();
