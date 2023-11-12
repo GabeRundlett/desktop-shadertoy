@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.21)
 
 include("${CMAKE_CURRENT_LIST_DIR}/cmake/deps.cmake")
 
-project(desktop-shadertoy VERSION 0.1.0)
+project(desktop-shadertoy VERSION 0.2.0)
 
 add_executable(${PROJECT_NAME}
     "src/main.cpp"
