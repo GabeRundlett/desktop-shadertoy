@@ -38,5 +38,6 @@ struct AppUi {
     void update(float time, float fps);
     void render(daxa::CommandRecorder &recorder, daxa::ImageId target_image);
 
+    void log_error(std::string const &msg);
     void toggle_fullscreen();
 };

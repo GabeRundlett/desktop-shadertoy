@@ -179,6 +179,10 @@ void AppUi::render(daxa::CommandRecorder &recorder, daxa::ImageId target_image) 
     render_interface.end_frame(target_image, recorder);
 }
 
+void AppUi::log_error(std::string const &msg) {
+    Rml::Log::Message(Rml::Log::LT_ERROR, "%s", msg.c_str());
+}
+
 void AppUi::toggle_fullscreen() {
     is_fullscreen = !is_fullscreen;
     on_toggle_fullscreen(is_fullscreen);

@@ -281,7 +281,6 @@ ShaderApp::ShaderApp()
             return;
         }
         main_task_graph = record_main_task_graph();
-        // reset_input();
         render();
     };
     ui.app_windows[0].on_drop = [&](std::span<char const *> paths) {
@@ -749,10 +748,13 @@ void ShaderApp::load_shadertoy_json(std::filesystem::path const &path) {
             ++cube_pass_n;
         }
     }
-    buffer_passes.clear();
-    cube_passes.clear();
-    buffer_passes.reserve(buffer_pass_n);
-    cube_passes.reserve(cube_pass_n);
+
+    std::vector<ShaderBufferPass> new_buffer_passes{};
+    std::vector<ShaderCubePass> new_cube_passes{};
+    ShaderBufferPass new_image_pass{};
+
+    new_buffer_passes.reserve(buffer_pass_n);
+    new_cube_passes.reserve(cube_pass_n);
     preprocess_shadertoy_code(common_code);
     pipeline_manager.add_virtual_file(daxa::VirtualFileInfo{
         .name = "common",
@@ -923,19 +925,16 @@ void ShaderApp::load_shadertoy_json(std::filesystem::path const &path) {
             .name = std::string{type} + " pass " + std::string{name},
         });
         if (compile_result.is_err() || !compile_result.value()->is_valid()) {
-            std::cerr << common_code << std::endl;
-            std::cerr << "----------------\n";
-            std::cerr << user_code.contents << std::endl;
-            std::cerr << compile_result.message() << std::endl;
+            ui.log_error(compile_result.message());
             return;
         }
 
         if (type == "image") {
-            image_pass = {name, temp_inputs, compile_result.value()};
+            new_image_pass = {name, temp_inputs, compile_result.value()};
         } else if (type == "buffer") {
-            buffer_passes.emplace_back(name, temp_inputs, compile_result.value());
+            new_buffer_passes.emplace_back(name, temp_inputs, compile_result.value());
         } else if (type == "cubemap") {
-            cube_passes.emplace_back(name, temp_inputs, compile_result.value());
+            new_cube_passes.emplace_back(name, temp_inputs, compile_result.value());
         }
     }
 
@@ -946,21 +945,25 @@ void ShaderApp::load_shadertoy_json(std::filesystem::path const &path) {
             for (auto &input : pass.inputs) {
                 if (input.sampler == mip_sampler0 || input.sampler == mip_sampler1) {
                     switch (input.type) {
-                    case ShaderPassInputType::BUFFER: buffer_passes[input.index].needs_mipmap = true; break;
-                    case ShaderPassInputType::CUBE: cube_passes[input.index].needs_mipmap = true; break;
+                    case ShaderPassInputType::BUFFER: new_buffer_passes[input.index].needs_mipmap = true; break;
+                    case ShaderPassInputType::CUBE: new_cube_passes[input.index].needs_mipmap = true; break;
                     default: break;
                     }
                 }
             }
         };
-        for (auto &pass : buffer_passes) {
+        for (auto &pass : new_buffer_passes) {
             pass_needs_mipmaps(pass);
         }
-        for (auto &pass : cube_passes) {
+        for (auto &pass : new_cube_passes) {
             pass_needs_mipmaps(pass);
         }
-        pass_needs_mipmaps(image_pass);
+        pass_needs_mipmaps(new_image_pass);
     }
+
+    buffer_passes = std::move(new_buffer_passes);
+    cube_passes = std::move(new_cube_passes);
+    image_pass = std::move(new_image_pass);
 
     reset_input();
 }
