@@ -12,9 +12,7 @@
             "binaryDir": "${sourceDir}/.out/${presetName}",
             "generator": "Ninja Multi-Config",
             "cacheVariables": {
-                "GVOX_EDITOR_USE_VCPKG": true,
-                "GVOX_EDITOR_ENABLE_ASAN": false,
-                "GVOX_EDITOR_ENABLE_STATIC_ANALYSIS": false,
+                "DESKTOP_SHADERTOY_USE_VCPKG": true,
                 "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/cmake/vcpkg_triplets"
             }
         },
@@ -59,7 +57,6 @@
             "hidden": true,
             "binaryDir": "build",
             "cacheVariables": {
-                "GVOX_CONFIG_CLANGD": true,
                 "CMAKE_EXPORT_COMPILE_COMMANDS": true
             }
         },

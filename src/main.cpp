@@ -579,7 +579,7 @@ auto ShaderApp::load_cube_texture(std::string path) -> std::pair<daxa::ImageId, 
     int32_t size_y = 0;
     int32_t channel_n = 0;
     auto task_image = daxa::TaskImage({.name = path});
-    replace_all(path, "/media/a/", "media/");
+    replace_all(path, "/media/a/", "media/images/");
     stbi_set_flip_vertically_on_load(0);
     auto *temp_data = stbi_load(path.c_str(), &size_x, &size_y, &channel_n, 4);
     auto image_id = daxa_device.create_image({

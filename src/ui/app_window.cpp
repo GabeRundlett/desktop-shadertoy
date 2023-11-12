@@ -194,6 +194,13 @@ AppWindow::AppWindow(daxa::Device device, daxa_i32vec2 size)
     this->swapchain = device.create_swapchain({
         .native_window = get_native_handle(this->glfw_window.get()),
         .native_window_platform = get_native_platform(this->glfw_window.get()),
+        .surface_format_selector = [](daxa::Format format) -> int32_t {
+            switch (format) {
+            case daxa::Format::R8G8B8A8_UNORM: return 90;
+            case daxa::Format::B8G8R8A8_UNORM: return 80;
+            default: return 0;
+            }
+        },
         .present_mode = daxa::PresentMode::FIFO,
         .image_usage = daxa::ImageUsageFlagBits::TRANSFER_DST,
         .max_allowed_frames_in_flight = 1,

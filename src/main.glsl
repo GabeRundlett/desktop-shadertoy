@@ -158,9 +158,6 @@ void main() {
     vec2 fragCoord = pixel_i;
 #endif
     mainImage(frag_color, fragCoord);
-#if MAIN_IMAGE
-    frag_color.rgb = pow(frag_color.rgb, vec3(2.2));
-#endif
 #endif
 
     _daxa_color_output = frag_color;
