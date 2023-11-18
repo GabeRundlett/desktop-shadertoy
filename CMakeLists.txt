@@ -18,6 +18,8 @@ find_package(glfw3 CONFIG REQUIRED)
 find_package(RmlUi CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(Stb REQUIRED)
+find_package(Boost COMPONENTS asio beast)
+find_package(OpenSSL REQUIRED)
 
 target_link_libraries(${PROJECT_NAME}
 PRIVATE
@@ -25,6 +27,8 @@ PRIVATE
     nlohmann_json::nlohmann_json
     glfw
     RmlCore RmlDebugger
+    OpenSSL::SSL
+    ${Boost_LIBRARIES}
 )
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${Stb_INCLUDE_DIR}

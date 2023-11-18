@@ -76,6 +76,7 @@ AppWindow::AppWindow(daxa::Device device, daxa_i32vec2 size)
 
             // Override the default key event callback to add global shortcuts for the samples.
             RmlKeyDownCallback &key_down_callback = self.key_down_callback;
+            bool still_valid = true;
 
             switch (glfw_action) {
             case GLFW_PRESS:
@@ -90,7 +91,8 @@ AppWindow::AppWindow(daxa::Device device, daxa_i32vec2 size)
                     break;
                 }
                 // Otherwise, hand the event over to the context by calling the input handler as normal.
-                if (!RmlGLFW::ProcessKeyCallback(context, glfw_key, glfw_action, glfw_mods)) {
+                still_valid = RmlGLFW::ProcessKeyCallback(context, glfw_key, glfw_action, glfw_mods);
+                if (!still_valid) {
                     break;
                 }
                 // The key was not consumed by the context either, try keyboard shortcuts of lower priority.
@@ -103,7 +105,7 @@ AppWindow::AppWindow(daxa::Device device, daxa_i32vec2 size)
                 break;
             }
 
-            if (self.on_key) {
+            if (still_valid && self.on_key) {
                 self.on_key(glfw_key, glfw_action);
             }
         });
@@ -130,8 +132,8 @@ AppWindow::AppWindow(daxa::Device device, daxa_i32vec2 size)
         [](GLFWwindow *glfw_window, double xpos, double ypos) {
             auto &self = *reinterpret_cast<AppWindow *>(glfwGetWindowUserPointer(glfw_window));
             auto *context = self.rml_context;
-            RmlGLFW::ProcessCursorPosCallback(context, glfw_window, xpos, ypos, self.glfw_active_modifiers);
-            if (self.on_mouse_move) {
+            bool still_valid = RmlGLFW::ProcessCursorPosCallback(context, glfw_window, xpos, ypos, self.glfw_active_modifiers);
+            if (still_valid && self.on_mouse_move) {
                 self.on_mouse_move(static_cast<float>(xpos), static_cast<float>(ypos));
             }
         });
@@ -142,8 +144,8 @@ AppWindow::AppWindow(daxa::Device device, daxa_i32vec2 size)
             auto &self = *reinterpret_cast<AppWindow *>(glfwGetWindowUserPointer(glfw_window));
             auto *context = self.rml_context;
             self.glfw_active_modifiers = mods;
-            RmlGLFW::ProcessMouseButtonCallback(context, button, action, mods);
-            if (self.on_mouse_button) {
+            bool still_valid = RmlGLFW::ProcessMouseButtonCallback(context, button, action, mods);
+            if (still_valid && self.on_mouse_button) {
                 self.on_mouse_button(button, action);
             }
         });
@@ -153,8 +155,8 @@ AppWindow::AppWindow(daxa::Device device, daxa_i32vec2 size)
         [](GLFWwindow *glfw_window, double xoffset, double yoffset) {
             auto &self = *reinterpret_cast<AppWindow *>(glfwGetWindowUserPointer(glfw_window));
             auto *context = self.rml_context;
-            RmlGLFW::ProcessScrollCallback(context, yoffset, self.glfw_active_modifiers);
-            if (self.on_mouse_scroll) {
+            bool still_valid = RmlGLFW::ProcessScrollCallback(context, yoffset, self.glfw_active_modifiers);
+            if (still_valid && self.on_mouse_scroll) {
                 self.on_mouse_scroll(static_cast<float>(xoffset), static_cast<float>(yoffset));
             }
         });
@@ -184,7 +186,7 @@ AppWindow::AppWindow(daxa::Device device, daxa_i32vec2 size)
             }
         });
 
-    glfwSetWindowSizeLimits(this->glfw_window.get(), 390, 24, GLFW_DONT_CARE, GLFW_DONT_CARE);
+    glfwSetWindowSizeLimits(this->glfw_window.get(), 650, 24, GLFW_DONT_CARE, GLFW_DONT_CARE);
 
     auto icon_image = GLFWimage{};
     icon_image.pixels = stbi_load("appicon.png", &icon_image.width, &icon_image.height, nullptr, 4);

@@ -11,6 +11,10 @@ class EventInstancer : public Rml::EventListenerInstancer {
     auto InstanceEventListener(const Rml::String &value, Rml::Element * /*element*/) -> Rml::EventListener * override;
 };
 
+struct AppSettings {
+    bool export_downloads;
+};
+
 struct AppUi {
     std::atomic_bool should_close = false;
     std::vector<AppWindow> app_windows{};
@@ -23,10 +27,14 @@ struct AppUi {
     static inline AppUi *s_instance = nullptr;
     bool paused{};
     bool is_fullscreen{};
+    AppSettings settings{};
+
+    Rml::String id_input{};
 
     std::function<void()> on_reset{};
     std::function<void(bool)> on_toggle_pause{};
     std::function<void(bool)> on_toggle_fullscreen{};
+    std::function<void(Rml::String const &)> on_download{};
 
     explicit AppUi(daxa::Device device);
     ~AppUi();

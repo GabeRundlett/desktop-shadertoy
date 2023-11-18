@@ -4,22 +4,31 @@
 #include <daxa/utils/pipeline_manager.hpp>
 #include <daxa/utils/task_graph.hpp>
 
-#include <filesystem>
 #include <fmt/format.h>
 #include <nlohmann/json.hpp>
 
 #include <ui/app_ui.hpp>
 #include <core/ping_pong_resource.hpp>
 
-#include <iostream>
-#include <fstream>
 #include <unordered_map>
 #include <cstdlib>
-#include <random>
 
 #include <stb_image.h>
 
 #include <main.inl>
+
+#include <filesystem>
+#include <fstream>
+#include <random>
+
+#include <boost/beast/core.hpp>
+#include <boost/beast/http.hpp>
+#include <boost/beast/ssl.hpp>
+#include <boost/beast/version.hpp>
+#include <boost/asio/connect.hpp>
+#include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/ssl/error.hpp>
+#include <boost/asio/ssl/stream.hpp>
 
 #define MAX_MIP 9
 
@@ -183,6 +192,7 @@ void replace_all(std::string &s, std::string const &toReplace, std::string const
 void preprocess_shadertoy_code(std::string &code) {
     replace_all(code, "\\n", "\n");
     replace_all(code, "sampler2D", "CombinedImageSampler2D");
+    replace_all(code, "sampler3D", "CombinedImageSampler3D");
     replace_all(code, "samplerCube", "CombinedImageSamplerCube");
     replace_all(code, "textureCube", "TextureCube");
 }
@@ -240,7 +250,8 @@ struct ShaderApp {
     auto load_texture(std::string path) -> std::pair<daxa::ImageId, size_t>;
     auto load_cube_texture(std::string path) -> std::pair<daxa::ImageId, size_t>;
     auto load_volume_texture(std::string id) -> std::pair<daxa::ImageId, size_t>;
-    void load_shadertoy_json(std::filesystem::path const &path);
+    void load_shadertoy_json(nlohmann::json json);
+    void download_shadertoy(std::string const &input);
     auto record_main_task_graph() -> daxa::TaskGraph;
 };
 
@@ -284,7 +295,7 @@ ShaderApp::ShaderApp()
         render();
     };
     ui.app_windows[0].on_drop = [&](std::span<char const *> paths) {
-        load_shadertoy_json(paths[0]);
+        load_shadertoy_json(nlohmann::json::parse(std::ifstream(paths[0])));
         main_task_graph = record_main_task_graph();
     };
     ui.app_windows[0].on_mouse_move = [&](float px, float py) {
@@ -296,9 +307,6 @@ ShaderApp::ShaderApp()
         }
     };
     ui.app_windows[0].on_mouse_button = [&](int32_t button_id, int32_t action) {
-        if (mouse_pos.y < 24) {
-            return;
-        }
         if (button_id == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
             gpu_input.Mouse.x = mouse_pos.x;
             gpu_input.Mouse.y = mouse_pos.y;
@@ -377,7 +385,11 @@ ShaderApp::ShaderApp()
         main_task_graph = record_main_task_graph();
     };
 
-    load_shadertoy_json("default-shader.json");
+    ui.on_download = [&](Rml::String const &rml_input) {
+        download_shadertoy(rml_input);
+    };
+
+    load_shadertoy_json(nlohmann::json::parse(std::ifstream("default-shader.json")));
     main_task_graph = record_main_task_graph();
 
     reset_input();
@@ -711,9 +723,7 @@ auto ShaderApp::load_volume_texture(std::string id) -> std::pair<daxa::ImageId, 
     return std::pair<daxa::ImageId, size_t>{image_id, task_image_index};
 }
 
-void ShaderApp::load_shadertoy_json(std::filesystem::path const &path) {
-    auto json = nlohmann::json::parse(std::ifstream(path));
-
+void ShaderApp::load_shadertoy_json(nlohmann::json json) {
     if (json.contains("numShaders")) {
         // Is a "export all shaders" json file. Let's split it up for the user.
         for (auto &shader : json["shaders"]) {
@@ -736,8 +746,9 @@ void ShaderApp::load_shadertoy_json(std::filesystem::path const &path) {
         auto &outputs = renderpass["outputs"];
         auto id = std::string{};
         for (auto &output : outputs) {
-            id = output["id"];
+            id = nlohmann::to_string(output["id"]);
         }
+        replace_all(id, "\"", "");
         if (type == "common") {
             common_code += renderpass["code"];
         } else if (type == "buffer") {
@@ -767,10 +778,10 @@ void ShaderApp::load_shadertoy_json(std::filesystem::path const &path) {
         auto &inputs = renderpass["inputs"];
         auto &name = renderpass["name"];
         auto &outputs = renderpass["outputs"];
-        auto &type = renderpass["type"];
+        auto &pass_type = renderpass["type"];
 
         // Skip unknown pass type
-        if (type != "image" && type != "buffer" && type != "cubemap") {
+        if (pass_type != "image" && pass_type != "buffer" && pass_type != "cubemap") {
             continue;
         }
 
@@ -793,7 +804,7 @@ void ShaderApp::load_shadertoy_json(std::filesystem::path const &path) {
             .contents = "#define iChannel3 CombinedImageSampler2D(daxa_push_constant.input_images.Channel[3], daxa_push_constant.input_images.Channel_sampler[3], 0)",
         });
 
-        auto type_json_to_glsl_image_type = [](nlohmann::json &json) -> std::string {
+        auto type_json_to_glsl_image_type = [](std::string const &json) -> std::string {
             if (json == "buffer" || json == "keyboard" || json == "texture") {
                 return "CombinedImageSampler2D";
             } else if (json == "cubemap") {
@@ -804,7 +815,7 @@ void ShaderApp::load_shadertoy_json(std::filesystem::path const &path) {
             return "void"; // L
         };
 
-        auto type_json_to_glsl_image_type_extra = [](nlohmann::json &json) -> std::string {
+        auto type_json_to_glsl_image_type_extra = [](std::string const &json) -> std::string {
             if (json == "buffer" || json == "texture") {
                 return ", 0";
             } else if (json == "keyboard") {
@@ -837,7 +848,15 @@ void ShaderApp::load_shadertoy_json(std::filesystem::path const &path) {
         };
 
         for (auto &input : inputs) {
-            auto &type = input["type"];
+            auto type = std::string{};
+            if (input.contains("type")) {
+                type = input["type"];
+            } else if (input.contains("ctype")) {
+                type = input["ctype"];
+            } else {
+                // 😐
+                continue;
+            }
 
             auto channel_str = std::to_string(uint32_t{input["channel"]});
             auto image_type = type_json_to_glsl_image_type(type);
@@ -861,7 +880,19 @@ void ShaderApp::load_shadertoy_json(std::filesystem::path const &path) {
                 if (input_copy.sampler == samplers[static_cast<size_t>(ShaderToyFilter::MIPMAP) + static_cast<size_t>(ShaderToyWrap::REPEAT) * 3]) {
                     input_copy.sampler = samplers[static_cast<size_t>(ShaderToyFilter::LINEAR) + static_cast<size_t>(ShaderToyWrap::REPEAT) * 3];
                 }
-                auto path = texture_input_type == ShaderPassInputType::VOLUME_TEXTURE ? std::string{input["id"]} : std::string{input["filepath"]};
+                auto filepath = std::string{};
+                auto path = std::string{};
+                if (texture_input_type == ShaderPassInputType::VOLUME_TEXTURE) {
+                    path = nlohmann::to_string(input["id"]);
+                    replace_all(path, "\"", "");
+                } else if (input.contains("filepath")) {
+                    path = std::string{input["filepath"]};
+                } else if (input.contains("src")) {
+                    path = std::string{input["src"]};
+                } else {
+                    // 😐
+                    return;
+                }
                 if (loaded_textures.contains(path)) {
                     auto &[loaded_texture, task_image_index] = loaded_textures.at(path);
                     input_copy.index = task_image_index;
@@ -874,10 +905,13 @@ void ShaderApp::load_shadertoy_json(std::filesystem::path const &path) {
                 temp_inputs.push_back(input_copy);
             };
 
-            if (type == "cubemap" && !id_map.contains(input["id"])) {
+            auto id = nlohmann::to_string(input["id"]);
+            replace_all(id, "\"", "");
+
+            if (type == "cubemap" && !id_map.contains(id)) {
                 load_texture_type(ShaderPassInputType::CUBE_TEXTURE, [](void *self, std::string const &path) { return static_cast<ShaderApp *>(self)->load_cube_texture(path); });
             } else if (type == "buffer" || type == "cubemap") {
-                auto input_copy = id_map[input["id"]];
+                auto input_copy = id_map[id];
                 input_copy.channel = input["channel"];
                 input_copy.sampler = get_sampler(samplers, input);
                 temp_inputs.push_back(input_copy);
@@ -907,13 +941,15 @@ void ShaderApp::load_shadertoy_json(std::filesystem::path const &path) {
 
         auto extra_defines = std::vector<daxa::ShaderDefine>{};
         auto pass_format = daxa::Format::R32G32B32A32_SFLOAT;
-        if (type == "image") {
+        if (pass_type == "image") {
             pass_format = daxa::Format::R16G16B16A16_SFLOAT;
             extra_defines.push_back({.name = "MAIN_IMAGE", .value = "1"});
-        } else if (type == "cubemap") {
+        } else if (pass_type == "cubemap") {
             pass_format = daxa::Format::R16G16B16A16_SFLOAT;
             extra_defines.push_back({.name = "CUBEMAP", .value = "1"});
         }
+
+        auto pipeline_name = std::string{pass_type} + " pass " + std::string{name};
 
         auto compile_result = pipeline_manager.add_raster_pipeline({
             .vertex_shader_info = daxa::ShaderCompileInfo{.source = daxa::ShaderFile{"main.glsl"}, .compile_options{.defines = extra_defines}},
@@ -922,18 +958,18 @@ void ShaderApp::load_shadertoy_json(std::filesystem::path const &path) {
                 .format = pass_format,
             }},
             .push_constant_size = sizeof(ShaderToyPush),
-            .name = std::string{type} + " pass " + std::string{name},
+            .name = pipeline_name,
         });
         if (compile_result.is_err() || !compile_result.value()->is_valid()) {
-            ui.log_error(compile_result.message());
+            ui.log_error(pipeline_name + ": " + compile_result.message());
             return;
         }
 
-        if (type == "image") {
+        if (pass_type == "image") {
             new_image_pass = {name, temp_inputs, compile_result.value()};
-        } else if (type == "buffer") {
+        } else if (pass_type == "buffer") {
             new_buffer_passes.emplace_back(name, temp_inputs, compile_result.value());
-        } else if (type == "cubemap") {
+        } else if (pass_type == "cubemap") {
             new_cube_passes.emplace_back(name, temp_inputs, compile_result.value());
         }
     }
@@ -966,6 +1002,60 @@ void ShaderApp::load_shadertoy_json(std::filesystem::path const &path) {
     image_pass = std::move(new_image_pass);
 
     reset_input();
+}
+
+void ShaderApp::download_shadertoy(std::string const &input) {
+    auto shader_id = input;
+    auto slash_pos = shader_id.find_last_of('/');
+    if (slash_pos != std::string::npos) {
+        shader_id = shader_id.substr(slash_pos + 1);
+    }
+
+    char const *shaderToyDomain = "www.shadertoy.com";
+    char const *shaderToyPort = "443";
+    char const *shaderToyKey = "Bt8jhH";
+    char const *shaderToyURI = "/api/v1/shaders/";
+    char const *userAgent = BOOST_BEAST_VERSION_STRING;
+
+    auto ioc = boost::beast::net::io_context{};
+
+    auto resolver = boost::asio::ip::tcp::resolver{ioc};
+    auto ssl_ctx = boost::asio::ssl::context(boost::asio::ssl::context::method::sslv23_client);
+    auto results = resolver.resolve(shaderToyDomain, shaderToyPort);
+    boost::beast::ssl_stream<boost::beast::tcp_stream> stream(ioc, ssl_ctx);
+    boost::beast::get_lowest_layer(stream).connect(results.begin(), results.end());
+    stream.handshake(boost::asio::ssl::stream_base::client);
+
+    std::string requestURI = shaderToyURI + shader_id + "?key=" + shaderToyKey;
+    auto req = boost::beast::http::request<boost::beast::http::string_body>{boost::beast::http::verb::post, requestURI, 10};
+    req.set(boost::beast::http::field::host, shaderToyDomain);
+    req.set(boost::beast::http::field::user_agent, userAgent);
+
+    boost::beast::http::write(stream, req);
+    boost::beast::flat_buffer buffer;
+    boost::beast::http::response<boost::beast::http::dynamic_body> res;
+    boost::beast::http::read(stream, buffer, res);
+    boost::beast::error_code ec;
+    stream.shutdown(ec);
+
+    if (ec) {
+        ui.log_error(ec.message());
+        return;
+    }
+
+    nlohmann::json json = nlohmann::json::parse(boost::beast::buffers_to_string(res.body().data()));
+    if (json.contains("Error")) {
+        ui.log_error("Failed to download from shadertoy: " + std::string{json["Error"]});
+        return;
+    }
+
+    if (ui.settings.export_downloads) {
+        auto f = std::ofstream("test-shader.json");
+        f << std::setw(4) << json["Shader"];
+    }
+
+    load_shadertoy_json(json["Shader"]);
+    main_task_graph = record_main_task_graph();
 }
 
 auto ShaderApp::record_main_task_graph() -> daxa::TaskGraph {

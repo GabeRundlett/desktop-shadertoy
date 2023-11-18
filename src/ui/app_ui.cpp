@@ -1,4 +1,5 @@
 #include <RmlUi/Core.h>
+#include <RmlUi/Core/Input.h>
 #include <RmlUi/Debugger.h>
 #include <fmt/format.h>
 
@@ -13,6 +14,7 @@ namespace {
     Rml::Element *fps_element{};
     Rml::Element *resolution_element{};
     Rml::Element *pause_element{};
+    Rml::Element *download_element{};
 
     void load_page(Rml::Context *context, Rml::String const &src_url) {
         auto *document = context->LoadDocument(src_url);
@@ -23,6 +25,7 @@ namespace {
             fps_element = document->GetElementById("fps");
             resolution_element = document->GetElementById("resolution");
             pause_element = document->GetElementById("pause");
+            download_element = document->GetElementById("download");
         }
     }
 
@@ -66,11 +69,7 @@ namespace {
             } else if ((key == Rml::Input::KI_OEM_PLUS || key == Rml::Input::KI_ADD) && ((key_modifier & Rml::Input::KM_CTRL) != 0)) {
                 const float new_dp_ratio = Rml::Math::Min(context->GetDensityIndependentPixelRatio() * 1.2f, 2.5f);
                 context->SetDensityIndependentPixelRatio(new_dp_ratio);
-            } else {
-                result = true;
-            }
-        } else {
-            if (key == Rml::Input::KI_R && ((key_modifier & Rml::Input::KM_CTRL) != 0)) {
+            } else if (key == Rml::Input::KI_R && ((key_modifier & Rml::Input::KM_CTRL) != 0)) {
                 auto docs_to_reload = std::vector<std::pair<Rml::String, Rml::ElementDocument *>>{};
                 for (int i = 0; i < context->GetNumDocuments(); i++) {
                     Rml::ElementDocument *document = context->GetDocument(i);
@@ -96,7 +95,7 @@ namespace {
       public:
         explicit Event(Rml::String value) : value(std::move(value)) {}
 
-        void ProcessEvent(Rml::Event & /*event*/) override {
+        void ProcessEvent(Rml::Event &event) override {
             if (value == "reset") {
                 AppUi::s_instance->on_reset();
             } else if (value == "pause") {
@@ -109,6 +108,14 @@ namespace {
                 AppUi::s_instance->on_toggle_pause(AppUi::s_instance->paused);
             } else if (value == "fullscreen") {
                 AppUi::s_instance->toggle_fullscreen();
+            } else if (value == "download") {
+                AppUi::s_instance->on_download(AppUi::s_instance->id_input);
+            } else if (value == "id_input_key") {
+                auto key = event.GetParameter("key_identifier", 0);
+                if (key == Rml::Input::KeyIdentifier::KI_RETURN ||
+                    key == Rml::Input::KeyIdentifier::KI_NUMPADENTER) {
+                    AppUi::s_instance->on_download(AppUi::s_instance->id_input);
+                }
             }
         }
 
@@ -148,6 +155,10 @@ AppUi::AppUi(daxa::Device device)
 
     Rml::Debugger::Initialise(rml_context);
     Rml::Factory::RegisterEventListenerInstancer(&event_instancer);
+
+    if (Rml::DataModelConstructor constructor = rml_context->CreateDataModel("ui_data")) {
+        constructor.Bind("id_input", &id_input);
+    }
 
     load_page(rml_context, "src/ui/main.rml");
 }

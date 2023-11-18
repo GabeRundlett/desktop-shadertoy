@@ -56,6 +56,7 @@ ivec2 textureSize(CombinedImageSampler2D c, int lod) {
 }
 ivec2 textureSize(CombinedImageSampler2D_int c, int lod) { return textureSize(daxa_isampler2D(c.image_view_id, c.sampler_id), lod); }
 ivec2 textureSize(CombinedImageSamplerCube c, int lod) { return textureSize(daxa_samplerCube(c.image_view_id, c.sampler_id), lod); }
+ivec3 textureSize(CombinedImageSampler3D c, int lod) { return textureSize(daxa_sampler3D(c.image_view_id, c.sampler_id), lod); }
 
 int textureQueryLevels(CombinedImageSampler2D c) {
     if (c.convert_int_to_float == 1) {
@@ -66,6 +67,7 @@ int textureQueryLevels(CombinedImageSampler2D c) {
 }
 int textureQueryLevels(CombinedImageSampler2D_int c) { return textureQueryLevels(daxa_isampler2D(c.image_view_id, c.sampler_id)); }
 int textureQueryLevels(CombinedImageSamplerCube c) { return textureQueryLevels(daxa_samplerCube(c.image_view_id, c.sampler_id)); }
+int textureQueryLevels(CombinedImageSampler3D c) { return textureQueryLevels(daxa_sampler3D(c.image_view_id, c.sampler_id)); }
 
 vec4 texelFetch(CombinedImageSampler2D c, ivec2 p, int lod) {
     if (c.convert_int_to_float == 1) {
