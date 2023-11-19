@@ -29,7 +29,7 @@ struct AppUi {
     bool is_fullscreen{};
     AppSettings settings{};
 
-    Rml::String id_input{};
+    Rml::String download_input{};
 
     std::function<void()> on_reset{};
     std::function<void(bool)> on_toggle_pause{};

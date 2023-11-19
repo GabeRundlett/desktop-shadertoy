@@ -99,11 +99,6 @@ vec4 textureGrad(CombinedImageSampler2D c, vec2 p, vec2 dTdx, vec2 dTdy) {
 }
 ivec4 textureGrad(CombinedImageSampler2D_int c, vec2 p, vec2 dTdx, vec2 dTdy) { return textureGrad(daxa_isampler2D(c.image_view_id, c.sampler_id), p, dTdx, dTdy); }
 
-#include <iChannel0_decl>
-#include <iChannel1_decl>
-#include <iChannel2_decl>
-#include <iChannel3_decl>
-
 #include <common>
 
 #include <user_code>

@@ -77,10 +77,11 @@ struct PingPongResource {
     TaskResources task_resources;
 
     auto get(daxa::Device a_device, ResourceInfoType const &a_info) -> std::pair<TaskResourceType &, TaskResourceType &> {
-        if (!resources.device) {
+        if (!resources.device.is_valid()) {
             resources.device = a_device;
         }
-        assert(resources.device == a_device);
+        // Can't compare managed_ptr
+        // assert(resources.device == a_device);
         if (resources.resource_a.is_empty()) {
             auto info_a = a_info;
             auto info_b = a_info;

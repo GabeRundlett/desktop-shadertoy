@@ -7,7 +7,12 @@
 
     <body class="window" data-model="ui_data">
         <div id="screen">
-            <div id="canvas"></div>
+            <div id="canvas">
+                <div id="download_bar">
+                    <label id="download_input_placeholder">Enter Shadertoy URL or ID here</label>
+                    <input id="download_input" type="text" data-value="download_input" onkeydown="download_input_key" />
+                </div>
+            </div>
             <div id="bottom-bar">
                 <button id="reset-button" onclick="reset">
                     <img id="reset" src="../../media/icons/reset.png"></img>
@@ -21,11 +26,9 @@
                 <button id="fullscreen-button" onclick="fullscreen">
                     <img id="fullscreen" src="../../media/icons/fullscreen.png"></img>
                 </button>
-                <button id="download-button" onclick="download">
+                <button id="download_button" onclick="download_button">
                     <img id="download" src="../../media/icons/download.png"></img>
                 </button>
-                <input id="id_input" type="text" data-value="id_input" onkeydown="id_input_key" />
-                <label for="id_input"> Placeholder </label>
             </div>
         </div>
     </body>

@@ -20,6 +20,7 @@
 #include <filesystem>
 #include <fstream>
 #include <random>
+#include <regex>
 
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
@@ -268,6 +269,26 @@ auto main() -> int {
 
 using namespace std::chrono_literals;
 
+static std::regex const SAMPLER2D_REGEX = std::regex(R"regex(\bsampler2D\b)regex");
+static std::regex const SAMPLER3D_REGEX = std::regex(R"regex(\bsampler3D\b)regex");
+static std::regex const SAMPLERCUBE_REGEX = std::regex(R"regex(\bsamplerCube\b)regex");
+static std::regex const TEXTURECUBE_REGEX = std::regex(R"regex(\btextureCube\b)regex");
+
+void shader_preprocess(std::string &contents, std::filesystem::path const &path) {
+    std::smatch matches = {};
+    std::string line = {};
+    std::stringstream file_ss{contents};
+    std::stringstream result_ss = {};
+    while (std::getline(file_ss, line)) {
+        line = std::regex_replace(line, SAMPLER2D_REGEX, "CombinedImageSampler2D");
+        line = std::regex_replace(line, SAMPLER3D_REGEX, "CombinedImageSampler3D");
+        line = std::regex_replace(line, SAMPLERCUBE_REGEX, "CombinedImageSamplerCube");
+        line = std::regex_replace(line, TEXTURECUBE_REGEX, "TextureCube");
+        result_ss << line << "\n";
+    }
+    contents = result_ss.str();
+}
+
 ShaderApp::ShaderApp()
     : daxa_instance{daxa::create_instance({})},
       daxa_device{daxa_instance.create_device({.flags = {}, .name = "device"})},
@@ -280,6 +301,7 @@ ShaderApp::ShaderApp()
                   .enable_debug_info = true,
               },
               .register_null_pipelines_when_first_compile_fails = true,
+              .custom_preprocessor = shader_preprocess,
               .name = "pipeline_manager",
           });
           return result;
@@ -334,6 +356,24 @@ ShaderApp::ShaderApp()
             break;
         case GLFW_KEY_DOWN:
             transformed_key_id = 40;
+            break;
+        case GLFW_KEY_LEFT_SHIFT:
+        case GLFW_KEY_RIGHT_SHIFT:
+            transformed_key_id = 16;
+            break;
+        case GLFW_KEY_LEFT_CONTROL:
+        case GLFW_KEY_RIGHT_CONTROL:
+            transformed_key_id = 17;
+            break;
+        case GLFW_KEY_LEFT_ALT:
+        case GLFW_KEY_RIGHT_ALT:
+            transformed_key_id = 18;
+            break;
+        case GLFW_KEY_CAPS_LOCK:
+            transformed_key_id = 20;
+            break;
+        case GLFW_KEY_TAB:
+            transformed_key_id = 9;
             break;
         case GLFW_KEY_F11:
             if (action == GLFW_PRESS) {
@@ -488,6 +528,8 @@ void ShaderApp::reset_input() {
 }
 
 void ShaderApp::render() {
+    pipeline_manager.reload_all();
+
     gpu_input.Resolution = daxa_f32vec3{
         static_cast<daxa_f32>(ui.app_windows[0].size.x),
         static_cast<daxa_f32>(ui.app_windows[0].size.y),
@@ -766,20 +808,44 @@ void ShaderApp::load_shadertoy_json(nlohmann::json json) {
 
     new_buffer_passes.reserve(buffer_pass_n);
     new_cube_passes.reserve(cube_pass_n);
-    preprocess_shadertoy_code(common_code);
+    replace_all(common_code, "\\n", "\n");
     pipeline_manager.add_virtual_file(daxa::VirtualFileInfo{
         .name = "common",
         .contents = common_code,
     });
 
+    auto user_code = daxa::VirtualFileInfo{
+        .name = "user_code",
+        .contents = "#pragma once\n",
+    };
+
+    auto pass_i = size_t{0};
     for (auto &renderpass : renderpasses) {
+        ++pass_i;
+        auto &name = renderpass["name"];
+        auto &pass_type = renderpass["type"];
+        auto pipeline_name = std::string{name};
+        // Skip unknown pass type
+        if (pass_type != "image" && pass_type != "buffer" && pass_type != "cubemap") {
+            continue;
+        }
+        user_code.contents += "#if defined(_DESKTOP_SHADERTOY_USER_PASS" + std::to_string(pass_i) + ")\n";
+        user_code.contents += "#include <" + pipeline_name + "_inputs>\n";
+        user_code.contents += "#include <" + pipeline_name + ">\n";
+        user_code.contents += "#endif\n";
+    }
+    pipeline_manager.add_virtual_file(user_code);
+
+    pass_i = size_t{0};
+    for (auto &renderpass : renderpasses) {
+        ++pass_i;
         auto &code = renderpass["code"];
         auto &description = renderpass["description"];
         auto &inputs = renderpass["inputs"];
         auto &name = renderpass["name"];
         auto &outputs = renderpass["outputs"];
         auto &pass_type = renderpass["type"];
-
+        auto pipeline_name = std::string{name};
         // Skip unknown pass type
         if (pass_type != "image" && pass_type != "buffer" && pass_type != "cubemap") {
             continue;
@@ -787,22 +853,10 @@ void ShaderApp::load_shadertoy_json(nlohmann::json json) {
 
         auto temp_inputs = std::vector<ShaderPassInput>{};
 
-        pipeline_manager.add_virtual_file({
-            .name = "iChannel0_decl",
-            .contents = "#define iChannel0 CombinedImageSampler2D(daxa_push_constant.input_images.Channel[0], daxa_push_constant.input_images.Channel_sampler[0], 0)",
-        });
-        pipeline_manager.add_virtual_file({
-            .name = "iChannel1_decl",
-            .contents = "#define iChannel1 CombinedImageSampler2D(daxa_push_constant.input_images.Channel[1], daxa_push_constant.input_images.Channel_sampler[1], 0)",
-        });
-        pipeline_manager.add_virtual_file({
-            .name = "iChannel2_decl",
-            .contents = "#define iChannel2 CombinedImageSampler2D(daxa_push_constant.input_images.Channel[2], daxa_push_constant.input_images.Channel_sampler[2], 0)",
-        });
-        pipeline_manager.add_virtual_file({
-            .name = "iChannel3_decl",
-            .contents = "#define iChannel3 CombinedImageSampler2D(daxa_push_constant.input_images.Channel[3], daxa_push_constant.input_images.Channel_sampler[3], 0)",
-        });
+        auto pass_inputs_file = daxa::VirtualFileInfo{
+            .name = pipeline_name + "_inputs",
+            .contents = "#pragma once\n",
+        };
 
         auto type_json_to_glsl_image_type = [](std::string const &json) -> std::string {
             if (json == "buffer" || json == "keyboard" || json == "texture") {
@@ -926,18 +980,17 @@ void ShaderApp::load_shadertoy_json(nlohmann::json json) {
             } else if (type == "volume") {
                 load_texture_type(ShaderPassInputType::VOLUME_TEXTURE, [](void *self, std::string const &id) { return static_cast<ShaderApp *>(self)->load_volume_texture(id); });
             }
-            pipeline_manager.add_virtual_file({
-                .name = std::string{"iChannel"} + channel_str + "_decl",
-                .contents = std::string{"#define iChannel"} + channel_str + " " + image_type + "(daxa_push_constant.input_images.Channel[" + channel_str + "], daxa_push_constant.input_images.Channel_sampler[" + channel_str + "]" + extra + ")",
-            });
+            pass_inputs_file.contents += std::string{"#define iChannel"} + channel_str + " " + image_type + "(daxa_push_constant.input_images.Channel[" + channel_str + "], daxa_push_constant.input_images.Channel_sampler[" + channel_str + "]" + extra + ")\n";
         }
 
-        auto user_code = daxa::VirtualFileInfo{
-            .name = "user_code",
+        auto pass_file = daxa::VirtualFileInfo{
+            .name = pipeline_name,
             .contents = code,
         };
-        preprocess_shadertoy_code(user_code.contents);
-        pipeline_manager.add_virtual_file(user_code);
+
+        replace_all(pass_file.contents, "\\n", "\n");
+        pipeline_manager.add_virtual_file(pass_file);
+        pipeline_manager.add_virtual_file(pass_inputs_file);
 
         auto extra_defines = std::vector<daxa::ShaderDefine>{};
         auto pass_format = daxa::Format::R32G32B32A32_SFLOAT;
@@ -948,8 +1001,7 @@ void ShaderApp::load_shadertoy_json(nlohmann::json json) {
             pass_format = daxa::Format::R16G16B16A16_SFLOAT;
             extra_defines.push_back({.name = "CUBEMAP", .value = "1"});
         }
-
-        auto pipeline_name = std::string{pass_type} + " pass " + std::string{name};
+        extra_defines.push_back({.name = "_DESKTOP_SHADERTOY_USER_PASS" + std::to_string(pass_i), .value = "1"});
 
         auto compile_result = pipeline_manager.add_raster_pipeline({
             .vertex_shader_info = daxa::ShaderCompileInfo{.source = daxa::ShaderFile{"main.glsl"}, .compile_options{.defines = extra_defines}},

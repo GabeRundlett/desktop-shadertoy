@@ -6,7 +6,6 @@
 #include "app_ui.hpp"
 
 #include <daxa/command_recorder.hpp>
-#include <iostream>
 #include <cassert>
 
 namespace {
@@ -14,7 +13,9 @@ namespace {
     Rml::Element *fps_element{};
     Rml::Element *resolution_element{};
     Rml::Element *pause_element{};
-    Rml::Element *download_element{};
+    Rml::Element *download_bar_element{};
+    Rml::Element *download_input_element{};
+    Rml::Element *download_input_placeholder_element{};
 
     void load_page(Rml::Context *context, Rml::String const &src_url) {
         auto *document = context->LoadDocument(src_url);
@@ -25,7 +26,10 @@ namespace {
             fps_element = document->GetElementById("fps");
             resolution_element = document->GetElementById("resolution");
             pause_element = document->GetElementById("pause");
-            download_element = document->GetElementById("download");
+
+            download_bar_element = document->GetElementById("download_bar");
+            download_input_element = document->GetElementById("download_input");
+            download_input_placeholder_element = document->GetElementById("download_input_placeholder");
         }
     }
 
@@ -108,13 +112,20 @@ namespace {
                 AppUi::s_instance->on_toggle_pause(AppUi::s_instance->paused);
             } else if (value == "fullscreen") {
                 AppUi::s_instance->toggle_fullscreen();
-            } else if (value == "download") {
-                AppUi::s_instance->on_download(AppUi::s_instance->id_input);
-            } else if (value == "id_input_key") {
+            } else if (value == "download_button") {
+                auto const display_prop = download_bar_element->GetProperty("display")->ToString();
+                if (display_prop == "block") {
+                    download_bar_element->SetProperty("display", "none");
+                } else {
+                    download_bar_element->SetProperty("display", "block");
+                }
+            } else if (value == "download_input_key") {
                 auto key = event.GetParameter("key_identifier", 0);
                 if (key == Rml::Input::KeyIdentifier::KI_RETURN ||
                     key == Rml::Input::KeyIdentifier::KI_NUMPADENTER) {
-                    AppUi::s_instance->on_download(AppUi::s_instance->id_input);
+                    download_bar_element->SetProperty("display", "none");
+
+                    AppUi::s_instance->on_download(AppUi::s_instance->download_input);
                 }
             }
         }
@@ -157,7 +168,7 @@ AppUi::AppUi(daxa::Device device)
     Rml::Factory::RegisterEventListenerInstancer(&event_instancer);
 
     if (Rml::DataModelConstructor constructor = rml_context->CreateDataModel("ui_data")) {
-        constructor.Bind("id_input", &id_input);
+        constructor.Bind("download_input", &download_input);
     }
 
     load_page(rml_context, "src/ui/main.rml");
@@ -178,6 +189,12 @@ void AppUi::update(float time, float fps) {
 
     auto fps_str = fmt::format("{:.1f} fps", fps);
     fps_element->SetInnerRML(fps_str);
+
+    if (AppUi::s_instance->download_input.empty()) {
+        download_input_placeholder_element->SetProperty("display", "block");
+    } else {
+        download_input_placeholder_element->SetProperty("display", "none");
+    }
 }
 
 void AppUi::render(daxa::CommandRecorder &recorder, daxa::ImageId target_image) {
