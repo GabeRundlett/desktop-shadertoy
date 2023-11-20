@@ -1,4 +1,4 @@
-#include <main.inl>
+#include <viewport.inl>
 
 #if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_VERTEX
 
