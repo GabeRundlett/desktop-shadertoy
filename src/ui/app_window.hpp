@@ -6,7 +6,7 @@
 #include <daxa/daxa.hpp>
 #include <GLFW/glfw3.h>
 
-#include "rml/system_glfw.hpp"
+#include <rml/system_glfw.hpp>
 
 struct AppWindow {
     std::unique_ptr<GLFWwindow, decltype(&glfwDestroyWindow)> glfw_window{nullptr, &glfwDestroyWindow};

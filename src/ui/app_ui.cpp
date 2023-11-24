@@ -1,9 +1,10 @@
 #include <RmlUi/Core.h>
+#include <RmlUi/Core/Element.h>
 #include <RmlUi/Core/Input.h>
 #include <RmlUi/Debugger.h>
 #include <fmt/format.h>
 
-#include "app_ui.hpp"
+#include <ui/app_ui.hpp>
 
 #include <daxa/command_recorder.hpp>
 #include <cassert>
@@ -16,6 +17,7 @@ namespace {
     Rml::Element *download_bar_element{};
     Rml::Element *download_input_element{};
     Rml::Element *download_input_placeholder_element{};
+    Rml::Element *viewport_element{};
 
     void load_page(Rml::Context *context, Rml::String const &src_url) {
         auto *document = context->LoadDocument(src_url);
@@ -30,6 +32,7 @@ namespace {
             download_bar_element = document->GetElementById("download_bar");
             download_input_element = document->GetElementById("download_input");
             download_input_placeholder_element = document->GetElementById("download_input_placeholder");
+            viewport_element = document->GetElementById("viewport");
         }
     }
 
@@ -206,12 +209,6 @@ void AppUi::render(daxa::CommandRecorder &recorder, daxa::ImageId target_image) 
     rml_context->Render();
     render_interface.end_frame(target_image, recorder);
 }
-
-namespace core {
-    void log_error(std::string const &msg) {
-        Rml::Log::Message(Rml::Log::LT_ERROR, "%s", msg.c_str());
-    }
-} // namespace
 
 void AppUi::toggle_fullscreen() {
     is_fullscreen = !is_fullscreen;

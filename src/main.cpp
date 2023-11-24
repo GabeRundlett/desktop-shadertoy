@@ -1,4 +1,4 @@
-#include <viewport.hpp>
+#include <app/viewport.hpp>
 
 #include <cstdint>
 #include <daxa/daxa.hpp>
@@ -46,6 +46,12 @@ struct ShaderApp {
     void download_shadertoy(std::string const &input);
     auto record_main_task_graph() -> daxa::TaskGraph;
 };
+
+namespace core {
+    void log_error(std::string const &msg) {
+        Rml::Log::Message(Rml::Log::LT_ERROR, "%s", msg.c_str());
+    }
+} // namespace core
 
 auto main() -> int {
     auto app = ShaderApp();

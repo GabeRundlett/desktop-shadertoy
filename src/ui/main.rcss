@@ -14,7 +14,7 @@ body {
     height: 100vh;
 }
 
-#canvas {
+#viewport {
     flex: 1;
     width: 100vw;
 }

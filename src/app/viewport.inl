@@ -1,6 +1,6 @@
 #pragma once
 
-#include <core/core.inl>
+#include <app/core.inl>
 
 struct GpuInput {
     daxa_f32vec3 Resolution;           // viewport resolution (in pixels)

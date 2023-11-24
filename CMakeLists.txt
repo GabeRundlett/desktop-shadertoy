@@ -6,11 +6,11 @@ project(desktop-shadertoy VERSION 0.2.0)
 
 add_executable(${PROJECT_NAME}
     "src/main.cpp"
-    "src/viewport.cpp"
+    "src/app/viewport.cpp"
     "src/ui/app_window.cpp"
     "src/ui/app_ui.cpp"
-    "src/ui/rml/render_daxa.cpp"
-    "src/ui/rml/system_glfw.cpp"
+    "src/rml/render_daxa.cpp"
+    "src/rml/system_glfw.cpp"
 )
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20)
 

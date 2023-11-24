@@ -1,6 +1,7 @@
-#include <viewport.hpp>
+#include <app/viewport.hpp>
 
 #include <GLFW/glfw3.h>
+#include <daxa/c/core.h>
 #include <stb_image.h>
 
 #include <unordered_map>
@@ -355,23 +356,67 @@ auto Viewport::record(daxa::TaskGraph &task_graph) -> daxa::TaskImageView {
     };
 
     for (auto &pass : buffer_passes) {
-        pass.buffer = {};
-        pass.buffer.get(
-            daxa_device,
-            daxa::ImageInfo{
-                .format = daxa::Format::R32G32B32A32_SFLOAT,
-                .size = {static_cast<uint32_t>(gpu_input.Resolution.x), static_cast<uint32_t>(gpu_input.Resolution.y), 1},
-                .mip_level_count = MAX_MIP,
-                .usage = daxa::ImageUsageFlagBits::COLOR_ATTACHMENT | daxa::ImageUsageFlagBits::SHADER_SAMPLED | daxa::ImageUsageFlagBits::TRANSFER_SRC | daxa::ImageUsageFlagBits::TRANSFER_DST,
-                .name = std::string{"buffer "} + std::string{pass.name},
+        auto const image_info = daxa::ImageInfo{
+            .format = daxa::Format::R32G32B32A32_SFLOAT,
+            .size = {static_cast<uint32_t>(gpu_input.Resolution.x), static_cast<uint32_t>(gpu_input.Resolution.y), 1},
+            .mip_level_count = MAX_MIP,
+            .usage = daxa::ImageUsageFlagBits::COLOR_ATTACHMENT | daxa::ImageUsageFlagBits::SHADER_SAMPLED | daxa::ImageUsageFlagBits::TRANSFER_SRC | daxa::ImageUsageFlagBits::TRANSFER_DST,
+            .name = std::string{"buffer "} + std::string{pass.name},
+        };
+        if (first_record_after_load) {
+            pass.buffer = {};
+            pass.buffer.get(daxa_device, image_info);
+        } else {
+            // resize the image while keeping the contents
+            auto temp_task_graph = daxa::TaskGraph(daxa::TaskGraphInfo{
+                .device = daxa_device,
+                .name = "temp_tg",
             });
+            auto new_buffer = PingPongImage{};
+            new_buffer.get(daxa_device, image_info);
+            temp_task_graph.use_persistent_image(pass.buffer.task_resources.history_resource);
+            temp_task_graph.use_persistent_image(new_buffer.task_resources.output_resource);
+            auto output_image_view_a = pass.buffer.task_resources.history_resource.view().view({.level_count = MAX_MIP});
+            auto output_image_view_b = new_buffer.task_resources.output_resource.view().view({.level_count = MAX_MIP});
+            temp_task_graph.add_task({
+                .uses = {
+                    daxa::TaskImageUse<daxa::TaskImageAccess::TRANSFER_READ>{output_image_view_a},
+                    daxa::TaskImageUse<daxa::TaskImageAccess::TRANSFER_WRITE>{output_image_view_b},
+                },
+                .task = [output_image_view_a, output_image_view_b](daxa::TaskInterface const &ti) {
+                    auto &recorder = ti.get_recorder();
+                    auto size_a = ti.get_device().info_image(ti.uses[output_image_view_a].image()).value().size;
+                    auto size_b = ti.get_device().info_image(ti.uses[output_image_view_b].image()).value().size;
+                    auto size = daxa_i32vec2{
+                        std::min(static_cast<int32_t>(size_a.x), static_cast<int32_t>(size_b.x)),
+                        std::min(static_cast<int32_t>(size_a.y), static_cast<int32_t>(size_b.y)),
+                    };
+                    recorder.blit_image_to_image({
+                        .src_image = ti.uses[output_image_view_a].image(),
+                        .src_image_layout = ti.uses[output_image_view_a].layout(),
+                        .dst_image = ti.uses[output_image_view_b].image(),
+                        .dst_image_layout = ti.uses[output_image_view_b].layout(),
+                        .src_offsets = {{{0, 0, 0}, {size.x, size.y, 1}}},
+                        .dst_offsets = {{{0, 0, 0}, {size.x, size.y, 1}}},
+                        .filter = daxa::Filter::NEAREST,
+                    });
+                },
+                .name = "resize_blit",
+            });
+            temp_task_graph.submit({});
+            temp_task_graph.complete({});
+            temp_task_graph.execute({});
+            pass.buffer = std::move(new_buffer);
+        }
         pass.recording_buffer_view = pass.buffer.task_resources.history_resource;
         task_graph.use_persistent_image(pass.buffer.task_resources.output_resource);
         task_graph.use_persistent_image(pass.buffer.task_resources.history_resource);
     }
 
     for (auto &pass : cube_passes) {
-        pass.buffer = {};
+        if (first_record_after_load) {
+            pass.buffer = {};
+        }
         pass.buffer.get(
             daxa_device,
             daxa::ImageInfo{
@@ -536,6 +581,8 @@ auto Viewport::record(daxa::TaskGraph &task_graph) -> daxa::TaskImageView {
             }
         }
     }
+
+    first_record_after_load = false;
 
     return viewport_render_image;
 }
@@ -1074,8 +1121,8 @@ void Viewport::load_shadertoy_json(nlohmann::json json) {
         extra_defines.push_back({.name = "_DESKTOP_SHADERTOY_USER_PASS" + std::to_string(pass_i), .value = "1"});
 
         auto compile_result = pipeline_manager.add_raster_pipeline({
-            .vertex_shader_info = daxa::ShaderCompileInfo{.source = daxa::ShaderFile{"viewport.glsl"}, .compile_options{.defines = extra_defines}},
-            .fragment_shader_info = daxa::ShaderCompileInfo{.source = daxa::ShaderFile{"viewport.glsl"}, .compile_options{.defines = extra_defines}},
+            .vertex_shader_info = daxa::ShaderCompileInfo{.source = daxa::ShaderFile{"app/viewport.glsl"}, .compile_options{.defines = extra_defines}},
+            .fragment_shader_info = daxa::ShaderCompileInfo{.source = daxa::ShaderFile{"app/viewport.glsl"}, .compile_options{.defines = extra_defines}},
             .color_attachments = {{
                 .format = pass_format,
             }},
@@ -1122,6 +1169,8 @@ void Viewport::load_shadertoy_json(nlohmann::json json) {
     buffer_passes = std::move(new_buffer_passes);
     cube_passes = std::move(new_cube_passes);
     image_pass = std::move(new_image_pass);
+
+    first_record_after_load = true;
 
     on_reset();
 }

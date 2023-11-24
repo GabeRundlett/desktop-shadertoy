@@ -7,7 +7,7 @@
 
     <body class="window" data-model="ui_data">
         <div id="screen">
-            <div id="canvas">
+            <div id="viewport">
                 <div id="download_bar">
                     <label id="download_input_placeholder">Enter Shadertoy URL or ID here</label>
                     <input id="download_input" type="text" data-value="download_input" onkeydown="download_input_key" />

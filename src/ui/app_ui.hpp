@@ -1,9 +1,9 @@
 #pragma once
 
-#include "rml/system_glfw.hpp"
-#include "rml/render_daxa.hpp"
+#include <rml/system_glfw.hpp>
+#include <rml/render_daxa.hpp>
 
-#include "app_window.hpp"
+#include <ui/app_window.hpp>
 #include <RmlUi/Core/EventListenerInstancer.h>
 
 class EventInstancer : public Rml::EventListenerInstancer {

@@ -1,7 +1,7 @@
 #pragma once
 
-#include <viewport.inl>
-#include <core/ping_pong_resource.hpp>
+#include <app/viewport.inl>
+#include <app/ping_pong_resource.hpp>
 
 #include <daxa/daxa.hpp>
 #include <daxa/utils/pipeline_manager.hpp>
@@ -72,6 +72,8 @@ struct Viewport {
     bool reset{};
     KeyboardInput keyboard_input{};
     daxa_f32vec2 mouse_pos{};
+
+    bool first_record_after_load{};
 
     explicit Viewport(daxa::Device a_daxa_device);
     ~Viewport();
