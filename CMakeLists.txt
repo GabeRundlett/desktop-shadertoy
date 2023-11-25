@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.21)
 
 include("${CMAKE_CURRENT_LIST_DIR}/cmake/deps.cmake")
 
-project(desktop-shadertoy VERSION 0.2.0)
+project(desktop-shadertoy VERSION 0.3.0)
 
 add_executable(${PROJECT_NAME}
     "src/main.cpp"
@@ -19,6 +19,7 @@ find_package(glfw3 CONFIG REQUIRED)
 find_package(RmlUi CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(Stb REQUIRED)
+find_package(fmt CONFIG REQUIRED)
 find_package(Boost COMPONENTS asio beast)
 find_package(OpenSSL REQUIRED)
 
@@ -28,6 +29,7 @@ PRIVATE
     nlohmann_json::nlohmann_json
     glfw
     RmlCore RmlDebugger
+    fmt::fmt
     OpenSSL::SSL
     ${Boost_LIBRARIES}
 )

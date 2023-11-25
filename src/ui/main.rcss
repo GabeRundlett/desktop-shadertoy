@@ -3,8 +3,6 @@ body {
     font-size: 18px;
     width: 100%;
     height: 100%;
-    /* Hack to make input work properly */
-    pointer-events: none;
 }
 
 #screen {
@@ -20,7 +18,6 @@ body {
 }
 
 #bottom-bar {
-    pointer-events: auto;
     color: black;
     font: bold;
     width: 100%;

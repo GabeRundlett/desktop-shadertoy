@@ -52,5 +52,5 @@ struct ShaderToyPush {
 DAXA_DECL_PUSH_CONSTANT(ShaderToyPush, daxa_push_constant)
 #else
 static_assert(sizeof(ShaderToyPush) <= 128);
-using BDA = daxa::BufferDeviceAddress;
+using BDA = daxa::DeviceAddress;
 #endif

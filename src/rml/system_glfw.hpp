@@ -52,6 +52,7 @@ namespace RmlGLFW {
 
     // Converts the GLFW key to RmlUi key.
     auto ConvertKey(int glfw_key) -> Rml::Input::KeyIdentifier;
+    auto ConvertKey(Rml::Input::KeyIdentifier rml_key) -> int;
 
     // Converts the GLFW key modifiers to RmlUi key modifiers.
     auto ConvertKeyModifiers(int glfw_mods) -> int;

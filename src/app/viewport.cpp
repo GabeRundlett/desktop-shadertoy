@@ -84,7 +84,7 @@ void GpuInputUploadTransferTask_record(daxa::Device &device, daxa::CommandRecord
 }
 
 void ShaderToyTask_record(std::shared_ptr<daxa::RasterPipeline> const &pipeline, daxa::CommandRecorder &cmd_list, BDA input_buffer_ptr, InputImages const &images, daxa::ImageId render_image, daxa_u32vec2 size) {
-    if (!pipeline) {
+    if (!pipeline || !pipeline->is_valid()) {
         return;
     }
     auto renderpass = std::move(cmd_list).begin_renderpass({
@@ -118,7 +118,7 @@ void ShaderToyCubeTask_record(std::shared_ptr<daxa::RasterPipeline> const &pipel
     cmd_list = std::move(renderpass).end_renderpass();
 }
 
-void replace_all(std::string &s, std::string const &toReplace, std::string const &replaceWith) {
+void replace_all(std::string &s, std::string const &toReplace, std::string const &replaceWith, bool wordBoundary = false) {
     std::string buf;
     std::size_t pos = 0;
     std::size_t prevPos{};
@@ -126,25 +126,40 @@ void replace_all(std::string &s, std::string const &toReplace, std::string const
     // Reserves rough estimate of final size of string.
     buf.reserve(s.size());
 
+    auto is_word_char = [](char c) -> bool {
+        return (c >= 'a' && c < 'z') ||
+               (c >= 'A' && c < 'Z') ||
+               c == '_';
+    };
+
     while (true) {
         prevPos = pos;
         pos = s.find(toReplace, pos);
         if (pos == std::string::npos) {
             break;
         }
-        buf.append(s, prevPos, pos - prevPos);
-        buf += replaceWith;
-        pos += toReplace.size();
+
+        bool is_word_bound_begin = pos == 0 || !is_word_char(s[pos - 1]);
+        bool is_word_bound_end = pos == (s.size() - toReplace.size()) || !is_word_char(s[pos + toReplace.size()]);
+        if (!is_word_bound_begin && !is_word_bound_end && wordBoundary) {
+            buf.append(s, prevPos, pos - prevPos);
+            buf += toReplace;
+            pos += toReplace.size();
+        } else {
+            buf.append(s, prevPos, pos - prevPos);
+            buf += replaceWith;
+            pos += toReplace.size();
+        }
     }
 
     buf.append(s, prevPos, s.size() - prevPos);
     s.swap(buf);
 }
 
-static std::regex const SAMPLER2D_REGEX = std::regex(R"regex(\bsampler2D\b)regex");
-static std::regex const SAMPLER3D_REGEX = std::regex(R"regex(\bsampler3D\b)regex");
-static std::regex const SAMPLERCUBE_REGEX = std::regex(R"regex(\bsamplerCube\b)regex");
-static std::regex const TEXTURECUBE_REGEX = std::regex(R"regex(\btextureCube\b)regex");
+// static std::regex const SAMPLER2D_REGEX = std::regex(R"regex(\bsampler2D\b)regex");
+// static std::regex const SAMPLER3D_REGEX = std::regex(R"regex(\bsampler3D\b)regex");
+// static std::regex const SAMPLERCUBE_REGEX = std::regex(R"regex(\bsamplerCube\b)regex");
+// static std::regex const TEXTURECUBE_REGEX = std::regex(R"regex(\btextureCube\b)regex");
 
 void shader_preprocess(std::string &contents, std::filesystem::path const &path) {
     std::smatch matches = {};
@@ -152,10 +167,10 @@ void shader_preprocess(std::string &contents, std::filesystem::path const &path)
     std::stringstream file_ss{contents};
     std::stringstream result_ss = {};
     while (std::getline(file_ss, line)) {
-        line = std::regex_replace(line, SAMPLER2D_REGEX, "CombinedImageSampler2D");
-        line = std::regex_replace(line, SAMPLER3D_REGEX, "CombinedImageSampler3D");
-        line = std::regex_replace(line, SAMPLERCUBE_REGEX, "CombinedImageSamplerCube");
-        line = std::regex_replace(line, TEXTURECUBE_REGEX, "TextureCube");
+        replace_all(line, "sampler2D", "CombinedImageSampler2D", true);
+        replace_all(line, "sampler3D", "CombinedImageSampler3D", true);
+        replace_all(line, "samplerCube", "CombinedImageSamplerCube", true);
+        replace_all(line, "textureCube", "TextureCube", true);
         result_ss << line << "\n";
     }
     contents = result_ss.str();
@@ -235,7 +250,7 @@ Viewport::~Viewport() {
 }
 
 void Viewport::update() {
-    pipeline_manager.reload_all();
+    // pipeline_manager.reload_all();
 
     using namespace std::chrono_literals;
     auto now = Clock::now();
@@ -251,19 +266,7 @@ void Viewport::update() {
     ++fps_count;
 }
 
-void Viewport::render(daxa_i32vec2 size) {
-    gpu_input.Resolution = daxa_f32vec3{
-        static_cast<daxa_f32>(size.x),
-        static_cast<daxa_f32>(size.y),
-        1.0f,
-    };
-
-    gpu_input.ChannelResolution[0] = daxa_f32vec3{
-        static_cast<daxa_f32>(size.x),
-        static_cast<daxa_f32>(size.y),
-        1.0f,
-    };
-
+void Viewport::render() {
     for (auto &pass : buffer_passes) {
         pass.buffer.swap();
         pass.recording_buffer_view = pass.buffer.task_resources.history_resource;
@@ -587,6 +590,21 @@ auto Viewport::record(daxa::TaskGraph &task_graph) -> daxa::TaskImageView {
     return viewport_render_image;
 }
 
+void Viewport::reset() {
+    gpu_input.Frame = 0;
+    auto now = Clock::now();
+    start = now;
+    gpu_input.Time = std::chrono::duration<daxa_f32>(now - start).count();
+    gpu_input.TimeDelta = std::max(std::numeric_limits<float>::min(), std::chrono::duration<daxa_f32>(now - prev_time).count());
+    gpu_input.FrameRate = 1.0f / gpu_input.TimeDelta;
+    prev_time = now;
+    prev_fps_time = now;
+    fps_count = 0;
+    last_known_fps = 1.0f;
+    gpu_input.Mouse = {0.0f, 0.0f, -1.0f, -1.0f};
+    is_reset = true;
+}
+
 void Viewport::on_mouse_move(float px, float py) {
     mouse_pos.x = px;
     mouse_pos.y = gpu_input.Resolution.y - py - 1.0f;
@@ -657,26 +675,11 @@ void Viewport::on_key(int32_t key_id, int32_t action) {
     }
 }
 
-void Viewport::on_reset() {
-    gpu_input.Frame = 0;
-    auto now = Clock::now();
-    start = now;
-    gpu_input.Time = std::chrono::duration<daxa_f32>(now - start).count();
-    gpu_input.TimeDelta = std::max(std::numeric_limits<float>::min(), std::chrono::duration<daxa_f32>(now - prev_time).count());
-    gpu_input.FrameRate = 1.0f / gpu_input.TimeDelta;
-    prev_time = now;
-    prev_fps_time = now;
-    fps_count = 0;
-    last_known_fps = 1.0f;
-    gpu_input.Mouse = {0.0f, 0.0f, -1.0f, -1.0f};
-    reset = true;
-}
-
 void Viewport::on_toggle_pause(bool is_paused) {
     if (is_paused) {
         pause_time = Clock::now();
-        reset = false;
-    } else if (reset) {
+        is_reset = false;
+    } else if (is_reset) {
         auto now = Clock::now();
         start = now;
         prev_time = now;
@@ -1018,6 +1021,11 @@ void Viewport::load_shadertoy_json(nlohmann::json json) {
             return samplers[static_cast<size_t>(filter) + static_cast<size_t>(wrap) * 3];
         };
 
+        pass_inputs_file.contents += "#define iChannel0 CombinedImageSampler2D(daxa_push_constant.input_images.Channel[0], daxa_push_constant.input_images.Channel_sampler[0], 0)\n";
+        pass_inputs_file.contents += "#define iChannel1 CombinedImageSampler2D(daxa_push_constant.input_images.Channel[1], daxa_push_constant.input_images.Channel_sampler[1], 0)\n";
+        pass_inputs_file.contents += "#define iChannel2 CombinedImageSampler2D(daxa_push_constant.input_images.Channel[2], daxa_push_constant.input_images.Channel_sampler[2], 0)\n";
+        pass_inputs_file.contents += "#define iChannel3 CombinedImageSampler2D(daxa_push_constant.input_images.Channel[3], daxa_push_constant.input_images.Channel_sampler[3], 0)\n";
+
         for (auto &input : inputs) {
             auto type = std::string{};
             if (input.contains("type")) {
@@ -1097,7 +1105,7 @@ void Viewport::load_shadertoy_json(nlohmann::json json) {
             } else if (type == "volume") {
                 load_texture_type(ShaderPassInputType::VOLUME_TEXTURE, [](void *self, std::string const &id) { return static_cast<Viewport *>(self)->load_volume_texture(id); });
             }
-            pass_inputs_file.contents += std::string{"#define iChannel"} + channel_str + " " + image_type + "(daxa_push_constant.input_images.Channel[" + channel_str + "], daxa_push_constant.input_images.Channel_sampler[" + channel_str + "]" + extra + ")\n";
+            pass_inputs_file.contents += std::string{"#undef iChannel"} + channel_str + "\n" + std::string{"#define iChannel"} + channel_str + " " + image_type + "(daxa_push_constant.input_images.Channel[" + channel_str + "], daxa_push_constant.input_images.Channel_sampler[" + channel_str + "]" + extra + ")\n";
         }
 
         auto pass_file = daxa::VirtualFileInfo{
@@ -1172,5 +1180,5 @@ void Viewport::load_shadertoy_json(nlohmann::json json) {
 
     first_record_after_load = true;
 
-    on_reset();
+    reset();
 }

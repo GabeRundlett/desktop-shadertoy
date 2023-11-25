@@ -69,7 +69,7 @@ struct Viewport {
     size_t fps_count{};
     float last_known_fps{};
     bool mouse_enabled{};
-    bool reset{};
+    bool is_reset{};
     KeyboardInput keyboard_input{};
     daxa_f32vec2 mouse_pos{};
 
@@ -84,13 +84,13 @@ struct Viewport {
     auto operator=(Viewport &&) -> Viewport & = delete;
 
     void update();
-    void render(daxa_i32vec2 size);
+    void render();
     auto record(daxa::TaskGraph &task_graph) -> daxa::TaskImageView;
+    void reset();
 
     void on_mouse_move(float px, float py);
     void on_mouse_button(int32_t button_id, int32_t action);
     void on_key(int32_t key_id, int32_t action);
-    void on_reset();
     void on_toggle_pause(bool is_paused);
 
     auto load_texture(std::string path) -> std::pair<daxa::ImageId, size_t>;

@@ -15,6 +15,7 @@
       ]
     },
     "glfw3",
+    "fmt",
     "rmlui",
     "openssl",
     "boost-asio",

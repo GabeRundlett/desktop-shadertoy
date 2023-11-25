@@ -1,5 +1,8 @@
-#include <RmlUi/Core.h>
+#include "app/core.inl"
+#include <GLFW/glfw3.h>
 #include <RmlUi/Core/Element.h>
+#include <RmlUi/Core/Event.h>
+#include <RmlUi/Core/ID.h>
 #include <RmlUi/Core/Input.h>
 #include <RmlUi/Debugger.h>
 #include <fmt/format.h>
@@ -8,6 +11,7 @@
 
 #include <daxa/command_recorder.hpp>
 #include <cassert>
+#include <iostream>
 
 namespace {
     Rml::Element *time_element{};
@@ -17,7 +21,47 @@ namespace {
     Rml::Element *download_bar_element{};
     Rml::Element *download_input_element{};
     Rml::Element *download_input_placeholder_element{};
-    Rml::Element *viewport_element{};
+
+    class DownloadBarEventListener : public Rml::EventListener {
+      public:
+        void ProcessEvent(Rml::Event &event) override {
+            if (event.GetId() == Rml::EventId::Blur) {
+                download_bar_element->SetProperty("display", "none");
+            }
+        }
+    };
+    DownloadBarEventListener download_bar_event_listener;
+
+    class ViewportEventListener : public Rml::EventListener {
+      public:
+        void ProcessEvent(Rml::Event &event) override {
+            switch (event.GetId()) {
+            case Rml::EventId::Mousemove: {
+                auto mouse_x = event.GetParameter("mouse_x", 0.0f);
+                auto mouse_y = event.GetParameter("mouse_y", 0.0f);
+                AppUi::s_instance->app_window.on_mouse_move(mouse_x, mouse_y);
+            } break;
+            case Rml::EventId::Keydown: {
+                auto key = Rml::Input::KeyIdentifier(event.GetParameter("key_identifier", 0));
+                AppUi::s_instance->app_window.on_key(RmlGLFW::ConvertKey(key), GLFW_PRESS);
+            } break;
+            case Rml::EventId::Keyup: {
+                auto key = Rml::Input::KeyIdentifier(event.GetParameter("key_identifier", 0));
+                AppUi::s_instance->app_window.on_key(RmlGLFW::ConvertKey(key), GLFW_RELEASE);
+            } break;
+            case Rml::EventId::Mousedown: {
+                auto button = event.GetParameter("button", 0);
+                AppUi::s_instance->app_window.on_mouse_button(button, GLFW_PRESS);
+            } break;
+            case Rml::EventId::Mouseup: {
+                auto button = event.GetParameter("button", 0);
+                AppUi::s_instance->app_window.on_mouse_button(button, GLFW_RELEASE);
+            } break;
+            default: break;
+            }
+        }
+    };
+    ViewportEventListener viewport_event_listener;
 
     void load_page(Rml::Context *context, Rml::String const &src_url) {
         auto *document = context->LoadDocument(src_url);
@@ -32,7 +76,14 @@ namespace {
             download_bar_element = document->GetElementById("download_bar");
             download_input_element = document->GetElementById("download_input");
             download_input_placeholder_element = document->GetElementById("download_input_placeholder");
-            viewport_element = document->GetElementById("viewport");
+            download_bar_element->AddEventListener(Rml::EventId::Blur, &download_bar_event_listener);
+
+            AppUi::s_instance->viewport_element = document->GetElementById("viewport");
+            AppUi::s_instance->viewport_element->AddEventListener(Rml::EventId::Mousedown, &viewport_event_listener);
+            AppUi::s_instance->viewport_element->AddEventListener(Rml::EventId::Mouseup, &viewport_event_listener);
+            AppUi::s_instance->viewport_element->AddEventListener(Rml::EventId::Mousemove, &viewport_event_listener);
+            AppUi::s_instance->viewport_element->AddEventListener(Rml::EventId::Keydown, &viewport_event_listener);
+            AppUi::s_instance->viewport_element->AddEventListener(Rml::EventId::Keyup, &viewport_event_listener);
         }
     }
 
@@ -64,34 +115,62 @@ namespace {
         bool result = false;
 
         if (priority) {
-            if (key == Rml::Input::KI_F8) {
-                Rml::Debugger::SetVisible(!Rml::Debugger::IsVisible());
-            } else if (key == Rml::Input::KI_0 && ((key_modifier & Rml::Input::KM_CTRL) != 0)) {
-                context->SetDensityIndependentPixelRatio(native_dp_ratio);
-            } else if (key == Rml::Input::KI_1 && ((key_modifier & Rml::Input::KM_CTRL) != 0)) {
-                context->SetDensityIndependentPixelRatio(1.f);
-            } else if ((key == Rml::Input::KI_OEM_MINUS || key == Rml::Input::KI_SUBTRACT) && ((key_modifier & Rml::Input::KM_CTRL) != 0)) {
-                const float new_dp_ratio = Rml::Math::Max(context->GetDensityIndependentPixelRatio() / 1.2f, 0.5f);
-                context->SetDensityIndependentPixelRatio(new_dp_ratio);
-            } else if ((key == Rml::Input::KI_OEM_PLUS || key == Rml::Input::KI_ADD) && ((key_modifier & Rml::Input::KM_CTRL) != 0)) {
-                const float new_dp_ratio = Rml::Math::Min(context->GetDensityIndependentPixelRatio() * 1.2f, 2.5f);
-                context->SetDensityIndependentPixelRatio(new_dp_ratio);
-            } else if (key == Rml::Input::KI_R && ((key_modifier & Rml::Input::KM_CTRL) != 0)) {
-                auto docs_to_reload = std::vector<std::pair<Rml::String, Rml::ElementDocument *>>{};
-                for (int i = 0; i < context->GetNumDocuments(); i++) {
-                    Rml::ElementDocument *document = context->GetDocument(i);
-                    Rml::String const &src = document->GetSourceURL();
-                    if (src.size() > 4 && src.substr(src.size() - 4) == ".rml") {
-                        docs_to_reload.emplace_back(src, document);
-                        document->ReloadStyleSheet();
+            switch (key) {
+            case Rml::Input::KI_R:
+                if ((key_modifier & Rml::Input::KM_CTRL) != 0) {
+                    auto docs_to_reload = std::vector<std::pair<Rml::String, Rml::ElementDocument *>>{};
+                    for (int i = 0; i < context->GetNumDocuments(); i++) {
+                        Rml::ElementDocument *document = context->GetDocument(i);
+                        Rml::String const &src = document->GetSourceURL();
+                        if (src.size() > 4 && src.substr(src.size() - 4) == ".rml") {
+                            docs_to_reload.emplace_back(src, document);
+                            document->ReloadStyleSheet();
+                        }
+                    }
+                    for (auto const &[src_url, document] : docs_to_reload) {
+                        document->Close();
+                        load_page(context, src_url);
                     }
                 }
-                for (auto const &[src_url, document] : docs_to_reload) {
-                    document->Close();
-                    load_page(context, src_url);
+                break;
+            case Rml::Input::KI_F11:
+                AppUi::s_instance->toggle_fullscreen();
+                break;
+            case Rml::Input::KI_ESCAPE:
+                if (AppUi::s_instance->is_fullscreen) {
+                    AppUi::s_instance->toggle_fullscreen();
                 }
-            } else {
+                break;
+            case Rml::Input::KI_F8:
+                Rml::Debugger::SetVisible(!Rml::Debugger::IsVisible());
+                break;
+            case Rml::Input::KI_0:
+                if ((key_modifier & Rml::Input::KM_CTRL) != 0) {
+                    context->SetDensityIndependentPixelRatio(native_dp_ratio);
+                }
+                break;
+            case Rml::Input::KI_1:
+                if ((key_modifier & Rml::Input::KM_CTRL) != 0) {
+                    context->SetDensityIndependentPixelRatio(1.f);
+                }
+                break;
+            case Rml::Input::KI_OEM_MINUS: [[fallthrough]];
+            case Rml::Input::KI_SUBTRACT:
+                if ((key_modifier & Rml::Input::KM_CTRL) != 0) {
+                    const float new_dp_ratio = Rml::Math::Max(context->GetDensityIndependentPixelRatio() / 1.2f, 0.5f);
+                    context->SetDensityIndependentPixelRatio(new_dp_ratio);
+                }
+                break;
+            case Rml::Input::KI_OEM_PLUS: [[fallthrough]];
+            case Rml::Input::KI_ADD:
+                if ((key_modifier & Rml::Input::KM_CTRL) != 0) {
+                    const float new_dp_ratio = Rml::Math::Min(context->GetDensityIndependentPixelRatio() * 1.2f, 2.5f);
+                    context->SetDensityIndependentPixelRatio(new_dp_ratio);
+                }
+                break;
+            default:
                 result = true;
+                break;
             }
         }
 
@@ -119,15 +198,17 @@ namespace {
                 auto const display_prop = download_bar_element->GetProperty("display")->ToString();
                 if (display_prop == "block") {
                     download_bar_element->SetProperty("display", "none");
+                    download_input_element->Blur();
                 } else {
                     download_bar_element->SetProperty("display", "block");
+                    download_input_element->Focus();
                 }
             } else if (value == "download_input_key") {
                 auto key = event.GetParameter("key_identifier", 0);
                 if (key == Rml::Input::KeyIdentifier::KI_RETURN ||
                     key == Rml::Input::KeyIdentifier::KI_NUMPADENTER) {
                     download_bar_element->SetProperty("display", "none");
-
+                    download_input_element->Blur();
                     AppUi::s_instance->on_download(AppUi::s_instance->download_input);
                 }
             }
@@ -143,16 +224,12 @@ namespace {
 auto EventInstancer::InstanceEventListener(const Rml::String &value, Rml::Element * /*element*/) -> Rml::EventListener * { return new Event(value); }
 
 AppUi::AppUi(daxa::Device device)
-    : app_windows([&]() {
-        auto result = std::vector<AppWindow>{};
-        result.emplace_back(device, daxa_i32vec2{1280, 720});
-        return result; }()),
-      render_interface(device, app_windows[0].swapchain.get_format()) {
+    : app_window(device, daxa_i32vec2{1280, 720 + 24}),
+      render_interface(device, app_window.swapchain.get_format()) {
 
     assert(s_instance == nullptr);
     s_instance = this;
 
-    auto &app_window = app_windows[0];
     app_window.on_close = [&]() { should_close.store(true); };
 
     system_interface.SetWindow(app_window.glfw_window.get());
@@ -182,10 +259,8 @@ AppUi::~AppUi() {
 }
 
 void AppUi::update(float time, float fps) {
-    for (auto &app_window : app_windows) {
-        app_window.key_down_callback = key_down_callback;
-        app_window.update();
-    }
+    app_window.key_down_callback = key_down_callback;
+    app_window.update();
 
     auto time_str = fmt::format("{:.2f}", time);
     time_element->SetInnerRML(time_str);
@@ -201,7 +276,7 @@ void AppUi::update(float time, float fps) {
 }
 
 void AppUi::render(daxa::CommandRecorder &recorder, daxa::ImageId target_image) {
-    auto resolution_str = fmt::format("{} x {}", app_windows[0].size.x, app_windows[0].size.y);
+    auto resolution_str = fmt::format("{} x {}", viewport_element->GetClientWidth(), viewport_element->GetClientHeight());
     resolution_element->SetInnerRML(resolution_str);
 
     rml_context->Update();

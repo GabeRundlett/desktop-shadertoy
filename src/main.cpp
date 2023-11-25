@@ -70,43 +70,29 @@ ShaderApp::ShaderApp()
       ui{daxa_device},
       viewport{daxa_device},
       task_swapchain_image{daxa::TaskImageInfo{.swapchain_image = true}} {
-    ui.app_windows[0].on_resize = [&]() {
-        if (ui.app_windows[0].size.x <= 0 || ui.app_windows[0].size.y <= 0) {
+    ui.app_window.on_resize = [&]() {
+        if (ui.app_window.size.x <= 0 || ui.app_window.size.y <= 0) {
             return;
         }
+        ui.rml_context->Update();
         main_task_graph = record_main_task_graph();
         render();
     };
-    ui.app_windows[0].on_drop = [&](std::span<char const *> paths) {
+    ui.app_window.on_drop = [&](std::span<char const *> paths) {
         viewport.load_shadertoy_json(nlohmann::json::parse(std::ifstream(paths[0])));
         main_task_graph = record_main_task_graph();
     };
-    ui.app_windows[0].on_mouse_move = std::bind(&Viewport::on_mouse_move, &viewport, std::placeholders::_1, std::placeholders::_2);
-    ui.app_windows[0].on_mouse_button = std::bind(&Viewport::on_mouse_button, &viewport, std::placeholders::_1, std::placeholders::_2);
-    ui.app_windows[0].on_key = [&](int32_t key_id, int32_t action) {
-        switch (key_id) {
-        case GLFW_KEY_F11:
-            if (action == GLFW_PRESS) {
-                ui.toggle_fullscreen();
-            }
-            break;
-        case GLFW_KEY_ESCAPE:
-            if (action == GLFW_PRESS && ui.is_fullscreen) {
-                ui.toggle_fullscreen();
-            }
-            break;
-        default:
-            break;
-        }
-
+    ui.app_window.on_mouse_move = std::bind(&Viewport::on_mouse_move, &viewport, std::placeholders::_1, std::placeholders::_2);
+    ui.app_window.on_mouse_button = std::bind(&Viewport::on_mouse_button, &viewport, std::placeholders::_1, std::placeholders::_2);
+    ui.app_window.on_key = [&](int32_t key_id, int32_t action) {
         viewport.on_key(key_id, action);
     };
 
-    ui.on_reset = std::bind(&Viewport::on_reset, &viewport);
+    ui.on_reset = std::bind(&Viewport::reset, &viewport);
     ui.on_toggle_pause = std::bind(&Viewport::on_toggle_pause, &viewport, std::placeholders::_1);
 
     ui.on_toggle_fullscreen = [&](bool is_fullscreen) {
-        ui.app_windows[0].set_fullscreen(is_fullscreen);
+        ui.app_window.set_fullscreen(is_fullscreen);
         main_task_graph = record_main_task_graph();
     };
 
@@ -119,7 +105,6 @@ ShaderApp::ShaderApp()
 }
 
 ShaderApp::~ShaderApp() {
-    ui.app_windows.clear();
     daxa_device.wait_idle();
     daxa_device.collect_garbage();
 }
@@ -132,7 +117,7 @@ void ShaderApp::update() {
 }
 
 void ShaderApp::render() {
-    auto &app_window = ui.app_windows[0];
+    auto &app_window = ui.app_window;
     if (app_window.size.x <= 0 || app_window.size.y <= 0) {
         return;
     }
@@ -142,7 +127,7 @@ void ShaderApp::render() {
     }
     task_swapchain_image.set_images({.images = {&swapchain_image, 1}});
 
-    viewport.render(ui.app_windows[0].size);
+    viewport.render();
 
     main_task_graph.execute({});
     daxa_device.collect_garbage();
@@ -209,12 +194,25 @@ void ShaderApp::download_shadertoy(std::string const &input) {
 }
 
 auto ShaderApp::record_main_task_graph() -> daxa::TaskGraph {
-    auto &app_window = ui.app_windows[0];
+    auto viewport_size = daxa_f32vec2(ui.viewport_element->GetClientWidth(), ui.viewport_element->GetClientHeight());
+    if (ui.is_fullscreen) {
+        viewport_size = daxa_f32vec2{
+            static_cast<daxa_f32>(ui.app_window.size.x),
+            static_cast<daxa_f32>(ui.app_window.size.y),
+        };
+    }
     viewport.gpu_input.Resolution = daxa_f32vec3{
-        static_cast<daxa_f32>(app_window.size.x),
-        static_cast<daxa_f32>(app_window.size.y),
+        static_cast<daxa_f32>(viewport_size.x),
+        static_cast<daxa_f32>(viewport_size.y),
         1.0f,
     };
+    viewport.gpu_input.ChannelResolution[0] = daxa_f32vec3{
+        static_cast<daxa_f32>(viewport_size.x),
+        static_cast<daxa_f32>(viewport_size.y),
+        1.0f,
+    };
+
+    auto &app_window = ui.app_window;
 
     auto task_graph = daxa::TaskGraph(daxa::TaskGraphInfo{
         .device = daxa_device,
@@ -248,16 +246,21 @@ auto ShaderApp::record_main_task_graph() -> daxa::TaskGraph {
             daxa::TaskImageUse<daxa::TaskImageAccess::TRANSFER_READ>{viewport_render_image},
             daxa::TaskImageUse<daxa::TaskImageAccess::TRANSFER_WRITE>{task_swapchain_image},
         },
-        .task = [viewport_render_image, this](daxa::TaskInterface const &ti) {
+        .task = [viewport_render_image, viewport_size, this](daxa::TaskInterface const &ti) {
             auto &recorder = ti.get_recorder();
             auto image_size = ti.get_device().info_image(ti.uses[viewport_render_image].image()).value().size;
+            auto viewport_pos0 = daxa_f32vec2{
+                ui.viewport_element->GetAbsoluteLeft() + ui.viewport_element->GetClientLeft(),
+                ui.viewport_element->GetAbsoluteTop() + ui.viewport_element->GetClientTop(),
+            };
+            auto viewport_pos1 = daxa_f32vec2{viewport_pos0.x + viewport_size.x, viewport_pos0.y + viewport_size.y};
             recorder.blit_image_to_image({
                 .src_image = ti.uses[viewport_render_image].image(),
                 .src_image_layout = ti.uses[viewport_render_image].layout(),
                 .dst_image = ti.uses[task_swapchain_image].image(),
                 .dst_image_layout = ti.uses[task_swapchain_image].layout(),
-                .src_offsets = {{{0, 0, 0}, {static_cast<int32_t>(image_size.x), static_cast<int32_t>(image_size.y), 1}}},
-                .dst_offsets = {{{0, 0, 0}, {static_cast<int32_t>(image_size.x), static_cast<int32_t>(image_size.y), 1}}},
+                .src_offsets = {{{static_cast<int32_t>(viewport_pos0.x), static_cast<int32_t>(viewport_pos0.y), 0}, {static_cast<int32_t>(viewport_pos1.x), static_cast<int32_t>(viewport_pos1.y), 1}}},
+                .dst_offsets = {{{static_cast<int32_t>(viewport_pos0.x), static_cast<int32_t>(viewport_pos0.y), 0}, {static_cast<int32_t>(viewport_pos1.x), static_cast<int32_t>(viewport_pos1.y), 1}}},
                 .filter = daxa::Filter::LINEAR,
             });
         },

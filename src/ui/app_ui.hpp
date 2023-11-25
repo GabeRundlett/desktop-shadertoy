@@ -4,6 +4,7 @@
 #include <rml/render_daxa.hpp>
 
 #include <ui/app_window.hpp>
+#include <RmlUi/Core.h>
 #include <RmlUi/Core/EventListenerInstancer.h>
 
 class EventInstancer : public Rml::EventListenerInstancer {
@@ -17,7 +18,8 @@ struct AppSettings {
 
 struct AppUi {
     std::atomic_bool should_close = false;
-    std::vector<AppWindow> app_windows{};
+    AppWindow app_window;
+    Rml::Element *viewport_element{};
 
     SystemInterface_GLFW system_interface{};
     RenderInterface_Daxa render_interface;
