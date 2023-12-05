@@ -6,6 +6,16 @@ if(NOT EXISTS "${CMAKE_CURRENT_LIST_DIR}/../deps/Daxa/CMakeLists.txt")
         COMMAND_ERROR_IS_FATAL ANY)
 endif()
 
+find_package(Git REQUIRED)
+if(NOT EXISTS "${CMAKE_SOURCE_DIR}/media")
+    execute_process(COMMAND ${GIT_EXECUTABLE} clone https://github.com/GabeRundlett/desktop-shadertoy-media media
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMAND_ERROR_IS_FATAL ANY)
+else()
+    execute_process(COMMAND ${GIT_EXECUTABLE} pull
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/media
+        COMMAND_ERROR_IS_FATAL ANY)
+endif()
 
 if(DESKTOP_SHADERTOY_USE_VCPKG)
     include("${CMAKE_CURRENT_LIST_DIR}/vcpkg.cmake")
