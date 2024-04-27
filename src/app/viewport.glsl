@@ -3,11 +3,8 @@
 #if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_VERTEX
 
 void main() {
-    switch (gl_VertexIndex) {
-    case 0: gl_Position = vec4(-1, -1, 0, 1); break;
-    case 1: gl_Position = vec4(+3, -1, 0, 1); break;
-    case 2: gl_Position = vec4(-1, +3, 0, 1); break;
-    }
+    vec2 uv = vec2(gl_VertexIndex & 1, (gl_VertexIndex >> 1) & 1);
+    gl_Position = vec4(uv * 4 - 1, 0, 1);
 }
 
 #elif DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_FRAGMENT
