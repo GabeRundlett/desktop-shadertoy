@@ -3,6 +3,8 @@
     <head>
         <title>Desktop Shadertoy</title>
         <link type="text/rcss" href="main.rcss" />
+        <link type="text/template" href="components/buffer_panel.rml" />
+        <link type="text/template" href="components/buffer_tab.rml" />
     </head>
 
     <body class="window" data-model="ui_data">
@@ -13,22 +15,29 @@
                     <input id="download_input" type="text" data-value="download_input" onkeydown="download_input_key" />
                 </div>
             </div>
-            <div id="bottom-bar">
-                <button id="reset-button" onclick="reset">
-                    <img id="reset" src="../../media/icons/reset.png"></img>
+            <div id="bottom_bar">
+                <button onclick="bottom_bar_reset">
+                    <img class="bottom_bar_icon_button" id="reset" src="../../media/icons/reset.png"></img>
                 </button>
-                <button id="pause-button" onclick="pause">
-                    <img id="pause" src="../../media/icons/pause.png"></img>
+                <button onclick="bottom_bar_pause">
+                    <img class="bottom_bar_icon_button" id="pause" src="../../media/icons/pause.png"></img>
                 </button>
                 <p id="time">142.4</p>
                 <p id="fps">59.9 fps</p>
                 <p id="resolution">512 x 288</p>
-                <button id="fullscreen-button" onclick="fullscreen">
-                    <img id="fullscreen" src="../../media/icons/fullscreen.png"></img>
+                <button onclick="bottom_bar_fullscreen">
+                    <img class="bottom_bar_icon_button" id="fullscreen" src="../../media/icons/fullscreen.png"></img>
                 </button>
-                <button id="download_button" onclick="download_button">
-                    <img id="download" src="../../media/icons/download.png"></img>
+                <button onclick="download_button">
+                    <img class="bottom_bar_icon_button" id="download" src="../../media/icons/download.png"></img>
                 </button>
+                <button onclick="bottom_bar_save">
+                    <img class="bottom_bar_icon_button" id="save" src="../../media/icons/save.png"></img>
+                </button>
+            </div>
+            <div id="buffer_menu">
+                <tabset id="buffer_tabs">
+                </tabset>
             </div>
         </div>
     </body>

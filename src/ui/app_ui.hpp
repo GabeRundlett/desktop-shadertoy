@@ -1,5 +1,7 @@
 #pragma once
 
+#include <ui/components/buffer_panel.hpp>
+
 #include <rml/system_glfw.hpp>
 #include <rml/render_daxa.hpp>
 
@@ -20,6 +22,7 @@ struct AppUi {
     std::atomic_bool should_close = false;
     AppWindow app_window;
     Rml::Element *viewport_element{};
+    BufferPanel buffer_panel{};
 
     SystemInterface_GLFW system_interface{};
     RenderInterface_Daxa render_interface;

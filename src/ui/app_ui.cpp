@@ -1,6 +1,8 @@
 #include "app/core.inl"
 #include <GLFW/glfw3.h>
 #include <RmlUi/Core/Element.h>
+#include <RmlUi/Core/ElementDocument.h>
+#include <RmlUi/Core/Elements/ElementTabSet.h>
 #include <RmlUi/Core/Event.h>
 #include <RmlUi/Core/ID.h>
 #include <RmlUi/Core/Input.h>
@@ -11,13 +13,8 @@
 
 #include <daxa/command_recorder.hpp>
 #include <cassert>
-#include <iostream>
 
 namespace {
-    Rml::Element *time_element{};
-    Rml::Element *fps_element{};
-    Rml::Element *resolution_element{};
-    Rml::Element *pause_element{};
     Rml::Element *download_bar_element{};
     Rml::Element *download_input_element{};
     Rml::Element *download_input_placeholder_element{};
@@ -32,6 +29,82 @@ namespace {
     };
     DownloadBarEventListener download_bar_event_listener;
 
+    void load_download_bar(Rml::ElementDocument *document) {
+        download_bar_element = document->GetElementById("download_bar");
+        download_input_element = document->GetElementById("download_input");
+        download_input_placeholder_element = document->GetElementById("download_input_placeholder");
+        download_bar_element->AddEventListener(Rml::EventId::Blur, &download_bar_event_listener);
+    }
+
+    void download_bar_process_event(Rml::Event &event, Rml::String const &value) {
+        if (value == "download_button") {
+            auto const display_prop = download_bar_element->GetProperty("display")->ToString();
+            if (display_prop == "block") {
+                download_bar_element->SetProperty("display", "none");
+                download_input_element->Blur();
+            } else {
+                download_bar_element->SetProperty("display", "block");
+                download_input_element->Focus();
+            }
+        } else if (value == "download_input_key") {
+            auto key = event.GetParameter("key_identifier", 0);
+            if (key == Rml::Input::KeyIdentifier::KI_RETURN ||
+                key == Rml::Input::KeyIdentifier::KI_NUMPADENTER) {
+                download_bar_element->SetProperty("display", "none");
+                download_input_element->Blur();
+                AppUi::s_instance->on_download(AppUi::s_instance->download_input);
+            }
+        }
+    }
+
+    void update_download_bar() {
+        if (AppUi::s_instance->download_input.empty()) {
+            download_input_placeholder_element->SetProperty("display", "block");
+        } else {
+            download_input_placeholder_element->SetProperty("display", "none");
+        }
+    }
+} // namespace
+
+namespace {
+    Rml::Element *time_element{};
+    Rml::Element *fps_element{};
+    Rml::Element *resolution_element{};
+    Rml::Element *pause_element{};
+
+    void load_bottom_bar(Rml::ElementDocument *document) {
+        time_element = document->GetElementById("time");
+        fps_element = document->GetElementById("fps");
+        resolution_element = document->GetElementById("resolution");
+        pause_element = document->GetElementById("pause");
+    }
+
+    void update_bottom_bar(float time, float fps) {
+        auto time_str = fmt::format("{:.2f}", time);
+        time_element->SetInnerRML(time_str);
+
+        auto fps_str = fmt::format("{:.1f} fps", fps);
+        fps_element->SetInnerRML(fps_str);
+    }
+
+    void bottom_bar_process_event(Rml::Event &event, Rml::String const &value) {
+        if (value == "bottom_bar_reset") {
+            AppUi::s_instance->on_reset();
+        } else if (value == "bottom_bar_pause") {
+            AppUi::s_instance->paused = !AppUi::s_instance->paused;
+            if (AppUi::s_instance->paused) {
+                pause_element->SetAttribute("src", "../../media/icons/play.png");
+            } else {
+                pause_element->SetAttribute("src", "../../media/icons/pause.png");
+            }
+            AppUi::s_instance->on_toggle_pause(AppUi::s_instance->paused);
+        } else if (value == "bottom_bar_fullscreen") {
+            AppUi::s_instance->toggle_fullscreen();
+        }
+    }
+} // namespace
+
+namespace {
     class ViewportEventListener : public Rml::EventListener {
       public:
         void ProcessEvent(Rml::Event &event) override {
@@ -63,27 +136,27 @@ namespace {
     };
     ViewportEventListener viewport_event_listener;
 
+    void load_viewport(Rml::ElementDocument *document) {
+        AppUi::s_instance->viewport_element = document->GetElementById("viewport");
+        AppUi::s_instance->viewport_element->AddEventListener(Rml::EventId::Mousedown, &viewport_event_listener);
+        AppUi::s_instance->viewport_element->AddEventListener(Rml::EventId::Mouseup, &viewport_event_listener);
+        AppUi::s_instance->viewport_element->AddEventListener(Rml::EventId::Mousemove, &viewport_event_listener);
+        AppUi::s_instance->viewport_element->AddEventListener(Rml::EventId::Keydown, &viewport_event_listener);
+        AppUi::s_instance->viewport_element->AddEventListener(Rml::EventId::Keyup, &viewport_event_listener);
+    }
+} // namespace
+
+namespace {
     void load_page(Rml::Context *context, Rml::String const &src_url) {
         auto *document = context->LoadDocument(src_url);
         document->Show();
 
         if (src_url == "src/ui/main.rml") {
-            time_element = document->GetElementById("time");
-            fps_element = document->GetElementById("fps");
-            resolution_element = document->GetElementById("resolution");
-            pause_element = document->GetElementById("pause");
+            load_bottom_bar(document);
+            load_download_bar(document);
+            load_viewport(document);
 
-            download_bar_element = document->GetElementById("download_bar");
-            download_input_element = document->GetElementById("download_input");
-            download_input_placeholder_element = document->GetElementById("download_input_placeholder");
-            download_bar_element->AddEventListener(Rml::EventId::Blur, &download_bar_event_listener);
-
-            AppUi::s_instance->viewport_element = document->GetElementById("viewport");
-            AppUi::s_instance->viewport_element->AddEventListener(Rml::EventId::Mousedown, &viewport_event_listener);
-            AppUi::s_instance->viewport_element->AddEventListener(Rml::EventId::Mouseup, &viewport_event_listener);
-            AppUi::s_instance->viewport_element->AddEventListener(Rml::EventId::Mousemove, &viewport_event_listener);
-            AppUi::s_instance->viewport_element->AddEventListener(Rml::EventId::Keydown, &viewport_event_listener);
-            AppUi::s_instance->viewport_element->AddEventListener(Rml::EventId::Keyup, &viewport_event_listener);
+            AppUi::s_instance->buffer_panel.load(context, document);
         }
     }
 
@@ -182,35 +255,12 @@ namespace {
         explicit Event(Rml::String value) : value(std::move(value)) {}
 
         void ProcessEvent(Rml::Event &event) override {
-            if (value == "reset") {
-                AppUi::s_instance->on_reset();
-            } else if (value == "pause") {
-                AppUi::s_instance->paused = !AppUi::s_instance->paused;
-                if (AppUi::s_instance->paused) {
-                    pause_element->SetAttribute("src", "../../media/icons/play.png");
-                } else {
-                    pause_element->SetAttribute("src", "../../media/icons/pause.png");
-                }
-                AppUi::s_instance->on_toggle_pause(AppUi::s_instance->paused);
-            } else if (value == "fullscreen") {
-                AppUi::s_instance->toggle_fullscreen();
-            } else if (value == "download_button") {
-                auto const display_prop = download_bar_element->GetProperty("display")->ToString();
-                if (display_prop == "block") {
-                    download_bar_element->SetProperty("display", "none");
-                    download_input_element->Blur();
-                } else {
-                    download_bar_element->SetProperty("display", "block");
-                    download_input_element->Focus();
-                }
-            } else if (value == "download_input_key") {
-                auto key = event.GetParameter("key_identifier", 0);
-                if (key == Rml::Input::KeyIdentifier::KI_RETURN ||
-                    key == Rml::Input::KeyIdentifier::KI_NUMPADENTER) {
-                    download_bar_element->SetProperty("display", "none");
-                    download_input_element->Blur();
-                    AppUi::s_instance->on_download(AppUi::s_instance->download_input);
-                }
+            if (value.find("bottom_bar_") != std::string::npos) {
+                bottom_bar_process_event(event, value);
+            } else if (value.find("download_") != std::string::npos) {
+                download_bar_process_event(event, value);
+            } else if (value.find("buffer_panel_") != std::string::npos) {
+                AppUi::s_instance->buffer_panel.process_event(event, value);
             }
         }
 
@@ -224,7 +274,7 @@ namespace {
 auto EventInstancer::InstanceEventListener(const Rml::String &value, Rml::Element * /*element*/) -> Rml::EventListener * { return new Event(value); }
 
 AppUi::AppUi(daxa::Device device)
-    : app_window(device, daxa_i32vec2{1280, 720 + 24}),
+    : app_window(device, daxa_i32vec2{800, 450 + 22 + 2 + 189 + 2}),
       render_interface(device, app_window.swapchain.get_format()) {
 
     assert(s_instance == nullptr);
@@ -262,17 +312,8 @@ void AppUi::update(float time, float fps) {
     app_window.key_down_callback = key_down_callback;
     app_window.update();
 
-    auto time_str = fmt::format("{:.2f}", time);
-    time_element->SetInnerRML(time_str);
-
-    auto fps_str = fmt::format("{:.1f} fps", fps);
-    fps_element->SetInnerRML(fps_str);
-
-    if (AppUi::s_instance->download_input.empty()) {
-        download_input_placeholder_element->SetProperty("display", "block");
-    } else {
-        download_input_placeholder_element->SetProperty("display", "none");
-    }
+    update_bottom_bar(time, fps);
+    update_download_bar();
 }
 
 void AppUi::render(daxa::CommandRecorder &recorder, daxa::ImageId target_image) {

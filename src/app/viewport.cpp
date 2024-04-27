@@ -250,7 +250,7 @@ Viewport::~Viewport() {
 }
 
 void Viewport::update() {
-    // pipeline_manager.reload_all();
+    pipeline_manager.reload_all();
 
     using namespace std::chrono_literals;
     auto now = Clock::now();
@@ -698,10 +698,31 @@ auto Viewport::load_texture(std::string path) -> std::pair<daxa::ImageId, size_t
     auto task_image = daxa::TaskImage({.name = path});
     replace_all(path, "/media/a/", "media/images/");
     stbi_set_flip_vertically_on_load(1);
-    auto *temp_data = stbi_load(path.c_str(), &size_x, &size_y, &channel_n, 4);
+    auto *stb_data = stbi_load(path.c_str(), &size_x, &size_y, &channel_n, 4);
+    auto *temp_data = stb_data;
+    auto *heap_data = (stbi_uc*){nullptr};
+    auto temp_format = daxa::Format::R8G8B8A8_UNORM;
+    auto pixel_size_bytes = 4;
+    if (stb_data == nullptr) {
+        // check if the file exists at all, allowing people to load a file to binary data
+        auto file = std::ifstream{path, std::ios::binary};
+        if (file.good()) {
+            auto size = std::filesystem::file_size(path);
+            pixel_size_bytes = 16;
+            size = (size + pixel_size_bytes - 1) & ~(pixel_size_bytes - 1);
+            size_x = std::min<int>(size / pixel_size_bytes, 1024);
+            size_y = (size / pixel_size_bytes + 1023) / 1024;
+            heap_data = new stbi_uc[size_x * size_y * pixel_size_bytes];
+            file.read(reinterpret_cast<char *>(heap_data), static_cast<std::streamsize>(size));
+            temp_data = heap_data;
+            temp_format = daxa::Format::R32G32B32A32_UINT;
+        } else {
+            temp_format = daxa::Format::UNDEFINED;
+        }
+    }
     auto image_id = daxa_device.create_image({
         .dimensions = 2,
-        .format = daxa::Format::R8G8B8A8_UNORM,
+        .format = temp_format,
         .size = {static_cast<uint32_t>(size_x), static_cast<uint32_t>(size_y), 1},
         .usage = daxa::ImageUsageFlagBits::TRANSFER_DST | daxa::ImageUsageFlagBits::SHADER_SAMPLED,
         .name = "texture",
@@ -717,14 +738,14 @@ auto Viewport::load_texture(std::string path) -> std::pair<daxa::ImageId, size_t
         .uses = {
             daxa::TaskImageUse<daxa::TaskImageAccess::TRANSFER_WRITE>{task_image},
         },
-        .task = [this, temp_data, size_x, size_y, image_id](daxa::TaskInterface task_runtime) {
+        .task = [this, temp_data, size_x, size_y, image_id, pixel_size_bytes](daxa::TaskInterface task_runtime) {
             auto staging_buffer = daxa_device.create_buffer({
-                .size = static_cast<uint32_t>(size_x * size_y * 4),
+                .size = static_cast<uint32_t>(size_x * size_y * pixel_size_bytes),
                 .allocate_info = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM,
                 .name = "staging_buffer",
             });
             auto *buffer_ptr = daxa_device.get_host_address_as<uint8_t>(staging_buffer).value();
-            memcpy(buffer_ptr, temp_data, size_x * size_y * 4);
+            memcpy(buffer_ptr, temp_data, size_x * size_y * pixel_size_bytes);
             auto &cmd_list = task_runtime.get_recorder();
             cmd_list.pipeline_barrier({
                 .dst_access = daxa::AccessConsts::TRANSFER_WRITE,
@@ -742,7 +763,12 @@ auto Viewport::load_texture(std::string path) -> std::pair<daxa::ImageId, size_t
     temp_task_graph.complete({});
     temp_task_graph.execute({});
     task_textures.push_back(task_image);
-    stbi_image_free(temp_data);
+    if (stb_data != nullptr) {
+        stbi_image_free(temp_data);
+    }
+    if (heap_data != nullptr) {
+        delete[] heap_data;
+    }
     return std::pair<daxa::ImageId, size_t>{image_id, task_image_index};
 }
 

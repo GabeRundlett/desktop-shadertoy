@@ -17,7 +17,7 @@ body {
     width: 100vw;
 }
 
-#bottom-bar {
+#bottom_bar {
     color: black;
     font: bold;
     width: 100%;
@@ -27,34 +27,36 @@ body {
     background-color: white;
 }
 
-#reset:hover,
-#pause:hover,
-#download:hover,
-#fullscreen:hover {
+.bottom_bar_icon_button:hover {
     top: 0px;
     margin-left: -1px;
     margin-right: -1px;
     border: 1px black;
 }
 
-#reset,
-#pause,
-#download,
-#fullscreen {
+.bottom_bar_icon_button {
     position: absolute;
     top: 1px;
 }
 
 #reset {
     left: 16px;
+    image-color: black;
 }
 
 #pause {
     left: 44px;
+    image-color: black;
 }
 
 #fullscreen {
     right: 16px;
+    image-color: black;
+}
+
+#save {
+    right: 80px;
+    image-color: black;
 }
 
 #time,
@@ -78,6 +80,7 @@ body {
 
 #download {
     right: 48px;
+    image-color: black;
 }
 
 div {

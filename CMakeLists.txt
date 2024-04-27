@@ -9,6 +9,7 @@ add_executable(${PROJECT_NAME}
     "src/app/viewport.cpp"
     "src/ui/app_window.cpp"
     "src/ui/app_ui.cpp"
+    "src/ui/components/buffer_panel.cpp"
     "src/rml/render_daxa.cpp"
     "src/rml/system_glfw.cpp"
 )

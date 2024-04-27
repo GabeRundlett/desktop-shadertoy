@@ -1,0 +1,146 @@
+#buffer_menu {
+    color: black;
+    font: bold;
+    width: 100%;
+    height: 189px;
+    padding-top: 1px;
+    padding-bottom: 1px;
+    background-color: #d2d2d2;
+}
+
+tabset {
+    display: inline-block;
+}
+
+tabs {
+    display: inline-block;
+    position: fixed;
+    clip: none;
+    text-align: right;
+}
+
+tab {
+    margin: 3px;
+    width: 92px;
+    padding: 0 5px;
+    line-height: 20px;
+    display: inline-block;
+    border-top: 4px;
+    border-bottom: 4px;
+    border-radius: 0px;
+    border-bottom-color: #F8B030;
+    border-top-color: #808080;
+
+    font-size: 15px;
+    color: #ffffff;
+    background-color: #808080;
+    text-align: center;
+}
+
+tab:hover {
+    color: #ffffff;
+    background-color: #B08060;
+    border-top-color: #B08060;
+}
+
+tab:active,
+tab:selected {
+    color: #ffffff;
+    background-color: #F8B030;
+    border-top-color: #F8B030;
+}
+
+panel {
+    display: inline-block;
+    margin-top: 27px;
+    padding: 4px;
+    border-top: 4px;
+    border-color: #F8B030;
+    width: 100%;
+    height: 100%;
+}
+
+#ichannel {
+    text-align: center;
+    background-color: #000000;
+    margin: 4px;
+}
+
+#ichannel_label {
+    background-color: #ffffff;
+    text-align: left;
+    padding: 4px;
+    width: 172px;
+    height: 15px;
+}
+
+#ichannel_settings {
+    position: absolute;
+    right: 9px;
+    bottom: 0px;
+    image-color: black;
+}
+
+#ichannel_settings:hover {
+    bottom: -1px;
+    margin-left: -1px;
+    margin-right: -1px;
+    border: 1px black;
+}
+
+.ichannel {
+    width: 180px;
+    height: 128px;
+    background-color: #e0e0e0;
+}
+
+.ichannel_img {
+    width: 180px;
+    height: 128px;
+}
+
+.filter {
+    padding: 4px;
+    width: 80px;
+    text-align: left;
+    border: 2px #686868;
+    border-radius: 2px;
+    background-color: #e0e0e0;
+}
+
+.option {
+    border: 2px #f1f1f1;
+    padding: 2px;
+    background-color: #f1f1f1;
+}
+
+.option:hover {
+    top: -1px;
+    background-color: #a1a1a1;
+}
+
+#buffer_edit:hover {
+    top: 0px;
+    margin-left: -1px;
+    margin-right: -1px;
+    border: 1px white;
+}
+
+#buffer_edit {
+    position: absolute;
+    top: 1px;
+    left: 2px;
+}
+
+#buffer_close:hover {
+    top: 0px;
+    margin-left: -1px;
+    margin-right: -1px;
+    border: 1px white;
+}
+
+#buffer_close {
+    position: absolute;
+    top: 1px;
+    right: 2px;
+}
