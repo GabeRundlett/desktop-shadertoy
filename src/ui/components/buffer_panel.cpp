@@ -87,10 +87,30 @@ void BufferPanel::load(Rml::Context *rml_context, Rml::ElementDocument *document
 
 void BufferPanel::process_event(Rml::Event &event, std::string const &value) {
     if (value == "buffer_panel_ichannel0_settings") {
-        // TODO: Fix me
-        auto *ichannel0 = event.GetCurrentElement()->GetParentNode()->GetElementById("ichannel0");
-        auto *ichannel_img = ichannel0->GetElementById("ichannel0_img");
-        auto *ichannel_sampler_menu = ichannel0->GetElementById("ichannel_sampler_menu");
+        auto *ichannel0 = event.GetCurrentElement()->GetParentNode()->GetParentNode()->GetChild(0);
+        auto *ichannel_img = ichannel0->GetChild(0);
+        auto *ichannel_sampler_menu = ichannel0->GetChild(1);
+        ichannel_img->SetAttribute("style", "visibility: hidden; height: 0px;");
+        ichannel_sampler_menu->SetAttribute("style", "visibility: visible;");
+    }
+    if (value == "buffer_panel_ichannel1_settings") {
+        auto *ichannel0 = event.GetCurrentElement()->GetParentNode()->GetParentNode()->GetChild(0);
+        auto *ichannel_img = ichannel0->GetChild(0);
+        auto *ichannel_sampler_menu = ichannel0->GetChild(1);
+        ichannel_img->SetAttribute("style", "visibility: hidden; height: 0px;");
+        ichannel_sampler_menu->SetAttribute("style", "visibility: visible;");
+    }
+    if (value == "buffer_panel_ichannel2_settings") {
+        auto *ichannel0 = event.GetCurrentElement()->GetParentNode()->GetParentNode()->GetChild(0);
+        auto *ichannel_img = ichannel0->GetChild(0);
+        auto *ichannel_sampler_menu = ichannel0->GetChild(1);
+        ichannel_img->SetAttribute("style", "visibility: hidden; height: 0px;");
+        ichannel_sampler_menu->SetAttribute("style", "visibility: visible;");
+    }
+    if (value == "buffer_panel_ichannel3_settings") {
+        auto *ichannel0 = event.GetCurrentElement()->GetParentNode()->GetParentNode()->GetChild(0);
+        auto *ichannel_img = ichannel0->GetChild(0);
+        auto *ichannel_sampler_menu = ichannel0->GetChild(1);
         ichannel_img->SetAttribute("style", "visibility: hidden; height: 0px;");
         ichannel_sampler_menu->SetAttribute("style", "visibility: visible;");
     }

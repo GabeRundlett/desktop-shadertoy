@@ -16,11 +16,11 @@ New in version 0.3.0, you can fetch the contents of shaders that use the "Public
 
 Alternatively, you can create or fork a shadertoy. Then go to your profile, where you'll be able to export it as a json file. Drag and drop this json onto the app window, and it will compile the shadertoy for you!
 
+<img src="res/export.png" width="492"/>
+
 You can use normal buffers, the common buffer, Cubemap buffers, and the image buffer. All built-in variables like iMouse and iTime are supported, and inputs can have the expected configuration parameters like mip-mapping, filtering modes and wrap modes.
 
 The releases tentatively ship with the assets from the Shadertoy website itself, so projects that utilize the images and/or cubemaps from the site will work on desktop as well.
-
-<img src="res/export.png" width="492"/>
 
 ## Issues
 If you find any issues with Desktop Shadertoy, I'd love it if you opened an issue on GitHub. It should be noted that with the download feature, many "Public" shaders might not support the Public + API setting, and you'll notice that it results in an in-app error message of "Shader not found". A great issue to report is if a shadertoy that you run results in 1) a shader compilation error, or 2) an application crash. Be sure to include in the issue what shadertoy or json file caused the issue.
