@@ -912,16 +912,6 @@ auto Viewport::load_volume_texture(std::string id) -> std::pair<daxa::ImageId, s
 }
 
 void Viewport::load_shadertoy_json(nlohmann::json json) {
-    if (json.contains("numShaders")) {
-        // Is a "export all shaders" json file. Let's split it up for the user.
-        for (auto &shader : json["shaders"]) {
-            auto filepath = std::string{"shader_"} + std::string{shader["info"]["id"]} + std::string{".json"};
-            auto f = std::ofstream(filepath);
-            f << std::setw(4) << shader;
-        }
-        return;
-    }
-
     auto &renderpasses = json["renderpass"];
 
     auto id_map = std::unordered_map<std::string, ShaderPassInput>{};

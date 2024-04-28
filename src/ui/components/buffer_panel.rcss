@@ -91,7 +91,12 @@ panel {
 .ichannel {
     width: 180px;
     height: 128px;
-    background-color: #e0e0e0;
+}
+
+.ichannel_sampler_menu {
+    background-color: #ffffff;
+    width: 180px;
+    height: 128px;
 }
 
 .ichannel_img {

@@ -6,7 +6,6 @@
 #include <daxa/utils/task_graph.hpp>
 
 #include <fmt/format.h>
-#include <nlohmann/json.hpp>
 
 #include <ui/app_ui.hpp>
 
@@ -79,8 +78,7 @@ ShaderApp::ShaderApp()
         render();
     };
     ui.app_window.on_drop = [&](std::span<char const *> paths) {
-        viewport.load_shadertoy_json(nlohmann::json::parse(std::ifstream(paths[0])));
-        main_task_graph = record_main_task_graph();
+        ui.buffer_panel.load_shadertoy_json(nlohmann::json::parse(std::ifstream(paths[0])));
     };
     ui.app_window.on_mouse_move = std::bind(&Viewport::on_mouse_move, &viewport, std::placeholders::_1, std::placeholders::_2);
     ui.app_window.on_mouse_button = std::bind(&Viewport::on_mouse_button, &viewport, std::placeholders::_1, std::placeholders::_2);
@@ -100,8 +98,9 @@ ShaderApp::ShaderApp()
         download_shadertoy(rml_input);
     };
 
-    viewport.load_shadertoy_json(nlohmann::json::parse(std::ifstream("default-shader.json")));
-    main_task_graph = record_main_task_graph();
+    ui.app_window.set_vsync(true);
+
+    ui.buffer_panel.load_shadertoy_json(nlohmann::json::parse(std::ifstream("default-shader.json")));
 }
 
 ShaderApp::~ShaderApp() {
@@ -126,6 +125,12 @@ void ShaderApp::render() {
         return;
     }
     task_swapchain_image.set_images({.images = {&swapchain_image, 1}});
+
+    if (ui.buffer_panel.dirty) {
+        viewport.load_shadertoy_json(ui.buffer_panel.get_shadertoy_json());
+        main_task_graph = record_main_task_graph();
+        ui.buffer_panel.dirty = false;
+    }
 
     viewport.render();
 
@@ -189,8 +194,7 @@ void ShaderApp::download_shadertoy(std::string const &input) {
         f << std::setw(4) << json["Shader"];
     }
 
-    viewport.load_shadertoy_json(json["Shader"]);
-    main_task_graph = record_main_task_graph();
+    ui.buffer_panel.load_shadertoy_json(json["Shader"]);
 }
 
 auto ShaderApp::record_main_task_graph() -> daxa::TaskGraph {

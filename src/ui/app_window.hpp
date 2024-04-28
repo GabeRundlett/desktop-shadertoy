@@ -39,4 +39,5 @@ struct AppWindow {
 
     void update();
     void set_fullscreen(bool is_fullscreen);
+    void set_vsync(bool enabled);
 };

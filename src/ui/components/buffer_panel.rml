@@ -8,18 +8,17 @@
         <datagrid>
             <col width="188px">
             <div class="ichannel" id="ichannel0">
-                <img class="ichannel_img" id="ichannel0_img" style="visibility: visible;"
-                    src="../../media/icons/keyboard.png"></img>
-                <div id="ichannel_sampler_menu" style="visibility: hidden;">
+                <img class="ichannel_img" id="ichannel0_img"></img>
+                <div class="ichannel_sampler_menu">
                     Filter
-                    <select class="filter" name="filter" onchange="change_filter">
+                    <select class="filter" name="filter" onchange="buffer_panel_change_filter">
                         <option class="option" value="nearest" selected>nearest</option>
                         <option class="option" value="linear" selected>linear</option>
                         <option class="option" value="mipmap" selected>mipmap</option>
                     </select>
                     <br />
                     Wrap
-                    <select class="filter" name="wrap" onchange="change_wrap">
+                    <select class="filter" name="wrap" onchange="buffer_panel_change_wrap">
                         <option class="option" value="clamp" selected>clamp</option>
                         <option class="option" value="repeat" selected>repeat</option>
                     </select>
@@ -34,18 +33,17 @@
             </col>
             <col width="188px">
             <div class="ichannel" id="ichannel1">
-                <img class="ichannel_img" id="ichannel1_img" style="visibility: visible;"
-                    src="../../media/images/e6e5631ce1237ae4c05b3563eda686400a401df4548d0f9fad40ecac1659c46c.jpg"></img>
-                <div id="ichannel_sampler_menu0" style="visibility: hidden;">
+                <img class="ichannel_img" id="ichannel1_img"></img>
+                <div class="ichannel_sampler_menu">
                     Filter
-                    <select class="filter" name="filter" onchange="change_filter">
+                    <select class="filter" name="filter" onchange="buffer_panel_change_filter">
                         <option class="option" value="nearest" selected>nearest</option>
                         <option class="option" value="linear" selected>linear</option>
                         <option class="option" value="mipmap" selected>mipmap</option>
                     </select>
                     <br />
                     Wrap
-                    <select class="filter" name="wrap" onchange="change_wrap">
+                    <select class="filter" name="wrap" onchange="buffer_panel_change_wrap">
                         <option class="option" value="clamp" selected>clamp</option>
                         <option class="option" value="repeat" selected>repeat</option>
                     </select>
@@ -54,24 +52,23 @@
             <div id="ichannel_label">
                 iChannel1
                 <button onclick="buffer_panel_ichannel1_settings">
-                    <img id="ichannel_settings" src="../../media/icons/settings.png"></img>
+                    <img id="ichannel_settings"></img>
                 </button>
             </div>
             </col>
             <col width="188px">
             <div class="ichannel" id="ichannel2">
-                <img class="ichannel_img" id="ichannel2_img" style="visibility: visible;"
-                    src="../../media/images/08b42b43ae9d3c0605da11d0eac86618ea888e62cdd9518ee8b9097488b31560.png"></img>
-                <div id="ichannel_sampler_menu0" style="visibility: hidden;">
+                <img class="ichannel_img" id="ichannel2_img"></img>
+                <div class="ichannel_sampler_menu">
                     Filter
-                    <select class="filter" name="filter" onchange="change_filter">
+                    <select class="filter" name="filter" onchange="buffer_panel_change_filter">
                         <option class="option" value="nearest" selected>nearest</option>
                         <option class="option" value="linear" selected>linear</option>
                         <option class="option" value="mipmap" selected>mipmap</option>
                     </select>
                     <br />
                     Wrap
-                    <select class="filter" name="wrap" onchange="change_wrap">
+                    <select class="filter" name="wrap" onchange="buffer_panel_change_wrap">
                         <option class="option" value="clamp" selected>clamp</option>
                         <option class="option" value="repeat" selected>repeat</option>
                     </select>
@@ -86,18 +83,17 @@
             </col>
             <col width="188px">
             <div class="ichannel" id="ichannel3">
-                <img class="ichannel_img" id="ichannel3_img" style="visibility: visible;"
-                    src="../../media/images/0a40562379b63dfb89227e6d172f39fdce9022cba76623f1054a2c83d6c0ba5d.png"></img>
-                <div id="ichannel_sampler_menu0" style="visibility: hidden;">
+                <img class="ichannel_img" id="ichannel3_img"></img>
+                <div class="ichannel_sampler_menu">
                     Filter
-                    <select class="filter" name="filter" onchange="change_filter">
+                    <select class="filter" name="filter" onchange="buffer_panel_change_filter">
                         <option class="option" value="nearest" selected>nearest</option>
                         <option class="option" value="linear" selected>linear</option>
                         <option class="option" value="mipmap" selected>mipmap</option>
                     </select>
                     <br />
                     Wrap
-                    <select class="filter" name="wrap" onchange="change_wrap">
+                    <select class="filter" name="wrap" onchange="buffer_panel_change_wrap">
                         <option class="option" value="clamp" selected>clamp</option>
                         <option class="option" value="repeat" selected>repeat</option>
                     </select>

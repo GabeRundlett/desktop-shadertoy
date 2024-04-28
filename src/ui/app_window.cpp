@@ -226,3 +226,8 @@ void AppWindow::set_fullscreen(bool is_fullscreen) {
         glfwSetWindowMonitor(glfw_window.get(), nullptr, fullscreen_cache.pos.x, fullscreen_cache.pos.y, fullscreen_cache.size.x, fullscreen_cache.size.y, GLFW_DONT_CARE);
     }
 }
+
+void AppWindow::set_vsync(bool enabled) {
+    // TODO: Add present mode function in Daxa
+    auto present_mode = enabled ? daxa::PresentMode::MAILBOX : daxa::PresentMode::IMMEDIATE;
+}

@@ -191,6 +191,7 @@ namespace {
             switch (key) {
             case Rml::Input::KI_R:
                 if ((key_modifier & Rml::Input::KM_CTRL) != 0) {
+                    auto prev_json = AppUi::s_instance->buffer_panel.json;
                     auto docs_to_reload = std::vector<std::pair<Rml::String, Rml::ElementDocument *>>{};
                     for (int i = 0; i < context->GetNumDocuments(); i++) {
                         Rml::ElementDocument *document = context->GetDocument(i);
@@ -204,6 +205,7 @@ namespace {
                         document->Close();
                         load_page(context, src_url);
                     }
+                    AppUi::s_instance->buffer_panel.load_shadertoy_json(prev_json);
                 }
                 break;
             case Rml::Input::KI_F11:
