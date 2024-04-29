@@ -1,4 +1,4 @@
-#buffer_menu {
+#buffer_panel {
     color: black;
     font: bold;
     width: 100%;
@@ -57,7 +57,6 @@ panel {
     border-top: 4px;
     border-color: #F8B030;
     width: 100%;
-    height: 100%;
 }
 
 #ichannel {
@@ -102,6 +101,7 @@ panel {
 .ichannel_img {
     width: 180px;
     height: 128px;
+    background-color: #000000;
 }
 
 .filter {
@@ -148,4 +148,98 @@ panel {
     position: absolute;
     top: 1px;
     right: 2px;
+}
+
+#bpiw {
+    z-index: 2;
+    position: absolute;
+    color: #000000;
+    background-color: rgb(238, 238, 238);
+    border: 1px;
+    border-color: #747474;
+    padding-bottom: 8px;
+
+    top: 5%;
+    left: 5%;
+}
+
+.bpiw_button {
+    position: absolute;
+    top: 4px;
+    image-color: black;
+}
+
+.bpiw_button:hover {
+    top: 3px;
+    margin-left: -1px;
+    margin-right: -1px;
+    border: 1px black;
+}
+
+#bpiw_close {
+    right: 4px;
+}
+
+#bpiw_header {
+    padding: 4px;
+    background-color: rgb(255, 255, 255);
+    height: 16px;
+}
+
+.bpiw_panel {
+    width: 660px;
+    height: 70%;
+}
+
+.bpiw_panel_container {
+    display: block;
+    position: absolute;
+    width: 665px;
+    height: 100%;
+    overflow-y: scroll;
+    overflow-x: hidden;
+}
+
+.bpiw_option {
+    border: 1px;
+    width: 210px;
+    height: 80px;
+    background-color: rgb(190, 190, 190);
+    margin-top: 4px;
+    border-color: rgb(190, 190, 190);
+}
+
+.bpiw_option:hover {
+    border-color: rgb(0, 0, 0);
+}
+
+.bpiw_option_preview {
+    margin: 4px;
+    width: 70px;
+    height: 70px;
+    display: inline-block;
+    background-color: #000000;
+}
+
+.bpiw_option_info {
+    font-size: 12px;
+    margin: 4px;
+    display: inline-block;
+    vertical-align: top;
+}
+
+scrollbarvertical {
+    width: 8px;
+}
+
+scrollbarvertical slidertrack {
+    border-left: 1px;
+    border-right: 1px;
+    border-color: #9e9e9e;
+    background: #7c7c7c;
+}
+
+scrollbarvertical sliderbar {
+    border: 1px #aaaaaa;
+    background: #dddddd;
 }

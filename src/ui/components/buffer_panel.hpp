@@ -16,8 +16,10 @@ struct BufferPanel {
     bool dirty = false;
     bool during_shader_load = false;
 
-    Rml::Element *buffer_menu_element{};
-    Rml::ElementTabSet *buffer_tabs_element{};
+    Rml::Element *base_element{};
+    Rml::ElementTabSet *tabs_element{};
+    Rml::Element *bpiw_element{};
+    Rml::Element *open_ichannel_img_element{};
 
     void load(Rml::Context *rml_context, Rml::ElementDocument *document);
     void process_event(Rml::Event &event, std::string const &value);

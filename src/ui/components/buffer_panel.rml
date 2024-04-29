@@ -52,7 +52,7 @@
             <div id="ichannel_label">
                 iChannel1
                 <button onclick="buffer_panel_ichannel1_settings">
-                    <img id="ichannel_settings"></img>
+                    <img id="ichannel_settings" src="../../media/icons/settings.png"></img>
                 </button>
             </div>
             </col>

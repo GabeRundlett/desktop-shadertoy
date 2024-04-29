@@ -1,0 +1,555 @@
+<template name="buffer_panel_input_window" content="content">
+
+    <head>
+        <link type="text/rcss" href="buffer_panel.rcss" />
+    </head>
+
+    <body class="buffer_panel_input_window">
+        <div id="bpiw" style="display: none;">
+            <div id="bpiw_header">
+                Select an input for the channel
+                <button onclick="buffer_panel_bpiw_close">
+                    <img class="bpiw_button" id="bpiw_close" src="../../media/icons/close.png"></img>
+                </button>
+            </div>
+            <div id="bpiw_content">
+                <tabset id="bpiw_tabs">
+                    <tab>Misc</tab>
+                    <panel id="bpiw_misc" class="bpiw_panel">
+                        <div class="bpiw_panel_container">
+                            <datagrid>
+                                <col width="220px">
+
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview" src="../../media/icons/keyboard.png" />
+                                    <div class="bpiw_option_info">
+                                        Keyboard
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        256 x 3
+                                        <br />
+                                        1 ch, int8
+                                    </div>
+                                </div>
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview" src="../../media/icons/buffer02.png" />
+                                    <div class="bpiw_option_info">
+                                        Buffer C
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        Viewport Res
+                                        <br />
+                                        4 ch, Float32, linear
+                                    </div>
+                                </div>
+
+                                </col>
+                                <col width="220px">
+
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview" src="../../media/icons/buffer00.png" />
+                                    <div class="bpiw_option_info">
+                                        Buffer A
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        Viewport Res
+                                        <br />
+                                        4 ch, Float32, linear
+                                    </div>
+                                </div>
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview" src="../../media/icons/buffer03.png" />
+                                    <div class="bpiw_option_info">
+                                        Buffer D
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        Viewport Res
+                                        <br />
+                                        4 ch, Float32, linear
+                                    </div>
+                                </div>
+
+                                </col>
+                                <col width="220px">
+
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview" src="../../media/icons/buffer01.png" />
+                                    <div class="bpiw_option_info">
+                                        Buffer B
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        Viewport Res
+                                        <br />
+                                        4 ch, Float32, linear
+                                    </div>
+                                </div>
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview" src="../../media/icons/cubemap00.png" />
+                                    <div class="bpiw_option_info">
+                                        Cubemap A
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        1024 x 1024
+                                        <br />
+                                        4 ch, Float16, linear
+                                    </div>
+                                </div>
+
+                                </col>
+                            </datagrid>
+                        </div>
+                    </panel>
+
+                    <tab>Textures</tab>
+                    <panel id="bpiw_textures" class="bpiw_panel">
+                        <div class="bpiw_panel_container">
+                            <datagrid>
+                                <col width="220px">
+
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview"
+                                        src="../../media/images/52d2a8f514c4fd2d9866587f4d7b2a5bfa1a11a0e772077d7682deb8b3b517e5.jpg" />
+                                    <div class="bpiw_option_info">
+                                        Abstract 1
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        1024 x 1024
+                                        <br />
+                                        3 ch, uint8
+                                    </div>
+                                </div>
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview"
+                                        src="../../media/images/85a6d68622b36995ccb98a89bbb119edf167c914660e4450d313de049320005c.png" />
+                                    <div class="bpiw_option_info">
+                                        Bayer
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        8 x 8
+                                        <br />
+                                        1 ch, uint8
+                                    </div>
+                                </div>
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview"
+                                        src="../../media/images/0c7bf5fe9462d5bffbd11126e82908e39be3ce56220d900f633d58fb432e56f5.png" />
+                                    <div class="bpiw_option_info">
+                                        Gray Noise Medium
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        256 x 256
+                                        <br />
+                                        1 ch, uint8
+                                    </div>
+                                </div>
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview"
+                                        src="../../media/images/8de3a3924cb95bd0e95a443fff0326c869f9d4979cd1d5b6e94e2a01f5be53e9.jpg" />
+                                    <div class="bpiw_option_info">
+                                        London
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        512 x 512
+                                        <br />
+                                        3 ch, uint8
+                                    </div>
+                                </div>
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview"
+                                        src="../../media/images/92d7758c402f0927011ca8d0a7e40251439fba3a1dac26f5b8b62026323501aa.jpg" />
+                                    <div class="bpiw_option_info">
+                                        Organic 2
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        1024 x 1024
+                                        <br />
+                                        3 ch, uint8
+                                    </div>
+                                </div>
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview"
+                                        src="../../media/images/ad56fba948dfba9ae698198c109e71f118a54d209c0ea50d77ea546abad89c57.png" />
+                                    <div class="bpiw_option_info">
+                                        Pebbles
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        512 x 512
+                                        <br />
+                                        1 ch, uint8
+                                    </div>
+                                </div>
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview"
+                                        src="../../media/images/10eb4fe0ac8a7dc348a2cc282ca5df1759ab8bf680117e4047728100969e7b43.jpg" />
+                                    <div class="bpiw_option_info">
+                                        Rock Tiles
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        512 x 512
+                                        <br />
+                                        3 ch, uint8
+                                    </div>
+                                </div>
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview"
+                                        src="../../media/images/1f7dca9c22f324751f2a5a59c9b181dfe3b5564a04b724c657732d0bf09c99db.jpg" />
+                                    <div class="bpiw_option_info">
+                                        Wood
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        1024 x 1024
+                                        <br />
+                                        1 ch, uint8
+                                    </div>
+                                </div>
+
+                                </col>
+                                <col width="220px">
+
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview"
+                                        src="../../media/images/bd6464771e47eed832c5eb2cd85cdc0bfc697786b903bfd30f890f9d4fc36657.jpg" />
+                                    <div class="bpiw_option_info">
+                                        Abstract 2
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        512 x 512
+                                        <br />
+                                        3 ch, uint8
+                                    </div>
+                                </div>
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview"
+                                        src="../../media/images/cb49c003b454385aa9975733aff4571c62182ccdda480aaba9a8d250014f00ec.png" />
+                                    <div class="bpiw_option_info">
+                                        Blue Noise
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        1024 x 1024
+                                        <br />
+                                        4 ch, uint8
+                                    </div>
+                                </div>
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview"
+                                        src="../../media/images/0a40562379b63dfb89227e6d172f39fdce9022cba76623f1054a2c83d6c0ba5d.png" />
+                                    <div class="bpiw_option_info">
+                                        Gray Noise Small
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        64 x 64
+                                        <br />
+                                        1 ch, uint8
+                                    </div>
+                                </div>
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview"
+                                        src="../../media/images/cbcbb5a6cfb55c36f8f021fbb0e3f69ac96339a39fa85cd96f2017a2192821b5.png" />
+                                    <div class="bpiw_option_info">
+                                        Nyan Cat
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        256 x 32
+                                        <br />
+                                        4 ch, uint8
+                                    </div>
+                                </div>
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview"
+                                        src="../../media/images/79520a3d3a0f4d3caa440802ef4362e99d54e12b1392973e4ea321840970a88a.jpg" />
+                                    <div class="bpiw_option_info">
+                                        Organic 3
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        1024 x 1024
+                                        <br />
+                                        3 ch, uint8
+                                    </div>
+                                </div>
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview"
+                                        src="../../media/images/f735bee5b64ef98879dc618b016ecf7939a5756040c2cde21ccb15e69a6e1cfb.png" />
+                                    <div class="bpiw_option_info">
+                                        RGBA Noise Medium
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        256 x 256
+                                        <br />
+                                        4 ch, uint8
+                                    </div>
+                                </div>
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview"
+                                        src="../../media/images/95b90082f799f48677b4f206d856ad572f1d178c676269eac6347631d4447258.jpg" />
+                                    <div class="bpiw_option_info">
+                                        Rusty Metal
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        512 x 512
+                                        <br />
+                                        3 ch, uint8
+                                    </div>
+                                </div>
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                </div>
+
+                                </col>
+                                <col width="220px">
+
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview"
+                                        src="../../media/images/8979352a182bde7c3c651ba2b2f4e0615de819585cc37b7175bcefbca15a6683.jpg" />
+                                    <div class="bpiw_option_info">
+                                        Abstract 3
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        1024 x 1024
+                                        <br />
+                                        3 ch, uint8
+                                    </div>
+                                </div>
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview"
+                                        src="../../media/images/08b42b43ae9d3c0605da11d0eac86618ea888e62cdd9518ee8b9097488b31560.png" />
+                                    <div class="bpiw_option_info">
+                                        Font 1
+                                        <br />
+                                        by otaviogood
+                                        <br />
+                                        <br />
+                                        1024 x 1024
+                                        <br />
+                                        4 ch, uint8
+                                    </div>
+                                </div>
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview"
+                                        src="../../media/images/fb918796edc3d2221218db0811e240e72e340350008338b0c07a52bd353666a6.jpg" />
+                                    <div class="bpiw_option_info">
+                                        Lichen
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        1024 x 1024
+                                        <br />
+                                        3 ch, uint8
+                                    </div>
+                                </div>
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview"
+                                        src="../../media/images/cd4c518bc6ef165c39d4405b347b51ba40f8d7a065ab0e8d2e4f422cbc1e8a43.jpg" />
+                                    <div class="bpiw_option_info">
+                                        Organic 1
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        1024 x 1024
+                                        <br />
+                                        3 ch, uint8
+                                    </div>
+                                </div>
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview"
+                                        src="../../media/images/3871e838723dd6b166e490664eead8ec60aedd6b8d95bc8e2fe3f882f0fd90f0.jpg" />
+                                    <div class="bpiw_option_info">
+                                        Organic 4
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        1024 x 1024
+                                        <br />
+                                        3 ch, uint8
+                                    </div>
+                                </div>
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview"
+                                        src="../../media/images/3083c722c0c738cad0f468383167a0d246f91af2bfa373e9c5c094fb8c8413e0.png" />
+                                    <div class="bpiw_option_info">
+                                        RGBA Noise Small
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        64 x 64
+                                        <br />
+                                        4 ch, uint8
+                                    </div>
+                                </div>
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview"
+                                        src="../../media/images/e6e5631ce1237ae4c05b3563eda686400a401df4548d0f9fad40ecac1659c46c.jpg" />
+                                    <div class="bpiw_option_info">
+                                        Stars
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        512 x 512
+                                        <br />
+                                        3 ch, uint8
+                                    </div>
+                                </div>
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                </div>
+
+                                </col>
+                            </datagrid>
+                        </div>
+                    </panel>
+
+                    <tab>Cubemaps</tab>
+                    <panel id="bpiw_cubemaps" class="bpiw_panel">
+                        <div class="bpiw_panel_container">
+                            <datagrid>
+                                <col width="220px">
+
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview"
+                                        src="../../media/images/94284d43be78f00eb6b298e6d78656a1b34e2b91b34940d02f1ca8b22310e8a0.png" />
+                                    <div class="bpiw_option_info">
+                                        Forest
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        256 x 256
+                                        <br />
+                                        3 ch, uint8
+                                    </div>
+                                </div>
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview"
+                                        src="../../media/images/0681c014f6c88c356cf9c0394ffe015acc94ec1474924855f45d22c3e70b5785.png" />
+                                    <div class="bpiw_option_info">
+                                        Forest Blurred
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        64 x 64
+                                        <br />
+                                        3 ch, uint8
+                                    </div>
+                                </div>
+
+                                </col>
+                                <col width="220px">
+
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview"
+                                        src="../../media/images/488bd40303a2e2b9a71987e48c66ef41f5e937174bf316d3ed0e86410784b919.jpg" />
+                                    <div class="bpiw_option_info">
+                                        St. Peter's Basilica
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        256 x 256
+                                        <br />
+                                        3 ch, uint8
+                                    </div>
+                                </div>
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview"
+                                        src="../../media/images/550a8cce1bf403869fde66dddf6028dd171f1852f4a704a465e1b80d23955663.png" />
+                                    <div class="bpiw_option_info">
+                                        St. Peter's Blurred
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        64 x 64
+                                        <br />
+                                        3 ch, uint8
+                                    </div>
+                                </div>
+
+                                </col>
+                                <col width="220px">
+
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview"
+                                        src="../../media/images/585f9546c092f53ded45332b343144396c0b2d70d9965f585ebc172080d8aa58.jpg" />
+                                    <div class="bpiw_option_info">
+                                        Uffizi Gallery
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        256 x 256
+                                        <br />
+                                        3 ch, uint8
+                                    </div>
+                                </div>
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview"
+                                        src="../../media/images/793a105653fbdadabdc1325ca08675e1ce48ae5f12e37973829c87bea4be3232.png" />
+                                    <div class="bpiw_option_info">
+                                        Uffizi Gallery Blurred
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        64 x 64
+                                        <br />
+                                        3 ch, uint8
+                                    </div>
+                                </div>
+
+                                </col>
+                            </datagrid>
+                        </div>
+                    </panel>
+                </tabset>
+            </div>
+        </div>
+    </body>
+
+</template>

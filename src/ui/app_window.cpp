@@ -186,7 +186,7 @@ AppWindow::AppWindow(daxa::Device device, daxa_i32vec2 size)
             }
         });
 
-    glfwSetWindowSizeLimits(this->glfw_window.get(), 760, 240, GLFW_DONT_CARE, GLFW_DONT_CARE);
+    glfwSetWindowSizeLimits(this->glfw_window.get(), 760, 215 + 240, GLFW_DONT_CARE, GLFW_DONT_CARE);
 
     auto icon_image = GLFWimage{};
     icon_image.pixels = stbi_load("appicon.png", &icon_image.width, &icon_image.height, nullptr, 4);

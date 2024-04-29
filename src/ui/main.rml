@@ -5,6 +5,7 @@
         <link type="text/rcss" href="main.rcss" />
         <link type="text/template" href="components/buffer_panel.rml" />
         <link type="text/template" href="components/buffer_tab.rml" />
+        <link type="text/template" href="components/buffer_panel_input_window.rml" />
     </head>
 
     <body class="window" data-model="ui_data">
@@ -14,6 +15,7 @@
                     <label id="download_input_placeholder">Enter Shadertoy URL or ID here</label>
                     <input id="download_input" type="text" data-value="download_input" onkeydown="download_input_key" />
                 </div>
+                <template src="buffer_panel_input_window"> </template>
             </div>
             <div id="bottom_bar">
                 <button onclick="bottom_bar_reset">
@@ -35,7 +37,7 @@
                     <img class="bottom_bar_icon_button" id="save" src="../../media/icons/save.png"></img>
                 </button>
             </div>
-            <div id="buffer_menu">
+            <div id="buffer_panel">
                 <tabset id="buffer_tabs">
                 </tabset>
             </div>
