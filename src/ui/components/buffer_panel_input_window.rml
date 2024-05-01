@@ -96,7 +96,7 @@
                                 <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
                                     <img class="bpiw_option_preview" src="../../media/icons/cubemap00.png" />
                                     <div class="bpiw_option_info">
-                                        Cubemap A
+                                        Cube A
                                         <br />
                                         by shadertoy
                                         <br />

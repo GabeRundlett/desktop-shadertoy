@@ -87,7 +87,7 @@ AppWindow::AppWindow(daxa::Device device, daxa_i32vec2 size)
                 glfwGetWindowContentScale(glfw_window, &dp_ratio, nullptr);
 
                 // See if we have any global shortcuts that take priority over the context.
-                if (key_down_callback && !key_down_callback(context, key, key_modifier, dp_ratio, true)) {
+                if (key_down_callback && !key_down_callback(context, key, key_modifier, glfw_action, dp_ratio, true)) {
                     break;
                 }
                 // Otherwise, hand the event over to the context by calling the input handler as normal.
@@ -96,7 +96,7 @@ AppWindow::AppWindow(daxa::Device device, daxa_i32vec2 size)
                     break;
                 }
                 // The key was not consumed by the context either, try keyboard shortcuts of lower priority.
-                if (key_down_callback && !key_down_callback(context, key, key_modifier, dp_ratio, false)) {
+                if (key_down_callback && !key_down_callback(context, key, key_modifier, glfw_action, dp_ratio, false)) {
                     break;
                 }
             } break;

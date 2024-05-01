@@ -700,7 +700,7 @@ auto Viewport::load_texture(std::string path) -> std::pair<daxa::ImageId, size_t
     stbi_set_flip_vertically_on_load(1);
     auto *stb_data = stbi_load(path.c_str(), &size_x, &size_y, &channel_n, 4);
     auto *temp_data = stb_data;
-    auto *heap_data = (stbi_uc*){nullptr};
+    auto *heap_data = (stbi_uc *)nullptr;
     auto temp_format = daxa::Format::R8G8B8A8_UNORM;
     auto pixel_size_bytes = 4;
     if (stb_data == nullptr) {

@@ -25,6 +25,7 @@ struct BufferPanel {
     void process_event(Rml::Event &event, std::string const &value);
 
     void load_shadertoy_json(nlohmann::json const &temp_json);
+    void reload_json();
     [[nodiscard]] auto get_shadertoy_json() const -> auto const & {
         return json;
     }

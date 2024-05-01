@@ -41,6 +41,8 @@ struct AppUi {
     std::function<void(bool)> on_toggle_fullscreen{};
     std::function<void(Rml::String const &)> on_download{};
 
+    std::optional<std::filesystem::path> current_save_path = std::nullopt;
+
     explicit AppUi(daxa::Device device);
     ~AppUi();
     AppUi(const AppUi &) = delete;
@@ -52,4 +54,5 @@ struct AppUi {
     void render(daxa::CommandRecorder &recorder, daxa::ImageId target_image);
 
     void toggle_fullscreen();
+    void save_json(bool save_as);
 };

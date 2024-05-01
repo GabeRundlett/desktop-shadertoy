@@ -8,11 +8,13 @@
 #include <RmlUi/Core/Input.h>
 #include <RmlUi/Debugger.h>
 #include <fmt/format.h>
+#include <nfd.h>
 
 #include <ui/app_ui.hpp>
 
 #include <daxa/command_recorder.hpp>
 #include <cassert>
+#include <fstream>
 
 namespace {
     Rml::Element *download_bar_element{};
@@ -100,6 +102,8 @@ namespace {
             AppUi::s_instance->on_toggle_pause(AppUi::s_instance->paused);
         } else if (value == "bottom_bar_fullscreen") {
             AppUi::s_instance->toggle_fullscreen();
+        } else if (value == "bottom_bar_save") {
+            AppUi::s_instance->save_json(false);
         }
     }
 } // namespace
@@ -180,7 +184,7 @@ namespace {
         }
     }
 
-    auto key_down_callback(Rml::Context *context, Rml::Input::KeyIdentifier key, int key_modifier, float native_dp_ratio, bool priority) -> bool {
+    auto key_down_callback(Rml::Context *context, Rml::Input::KeyIdentifier key, int key_modifier, int glfw_action, float native_dp_ratio, bool priority) -> bool {
         if (context == nullptr) {
             return true;
         }
@@ -190,7 +194,7 @@ namespace {
         if (priority) {
             switch (key) {
             case Rml::Input::KI_R:
-                if ((key_modifier & Rml::Input::KM_CTRL) != 0) {
+                if ((key_modifier & Rml::Input::KM_CTRL) != 0 && glfw_action == GLFW_PRESS) {
                     auto prev_json = AppUi::s_instance->buffer_panel.json;
                     auto docs_to_reload = std::vector<std::pair<Rml::String, Rml::ElementDocument *>>{};
                     for (int i = 0; i < context->GetNumDocuments(); i++) {
@@ -206,6 +210,11 @@ namespace {
                         load_page(context, src_url);
                     }
                     AppUi::s_instance->buffer_panel.load_shadertoy_json(prev_json);
+                }
+                break;
+            case Rml::Input::KI_S:
+                if ((key_modifier & Rml::Input::KM_CTRL) != 0 && glfw_action == GLFW_PRESS) {
+                    AppUi::s_instance->save_json((key_modifier & Rml::Input::KM_SHIFT) != 0);
                 }
                 break;
             case Rml::Input::KI_F11:
@@ -331,4 +340,19 @@ void AppUi::render(daxa::CommandRecorder &recorder, daxa::ImageId target_image) 
 void AppUi::toggle_fullscreen() {
     is_fullscreen = !is_fullscreen;
     on_toggle_fullscreen(is_fullscreen);
+}
+
+void AppUi::save_json(bool save_as) {
+    if (!current_save_path || save_as) {
+        nfdchar_t *out_path = nullptr;
+        nfdresult_t const result = NFD_SaveDialog("json", "", &out_path);
+        if (result == NFD_OKAY) {
+            current_save_path = out_path;
+        } else {
+            current_save_path = std::nullopt;
+            return;
+        }
+    }
+    auto file = std::ofstream(*current_save_path);
+    file << buffer_panel.get_shadertoy_json();
 }

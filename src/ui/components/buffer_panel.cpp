@@ -4,6 +4,7 @@
 #include <RmlUi/Core/Context.h>
 #include <RmlUi/Core/Element.h>
 #include <RmlUi/Core/ElementDocument.h>
+#include <RmlUi/Core/ElementText.h>
 #include <RmlUi/Core/Elements/ElementTabSet.h>
 #include <RmlUi/Core/Event.h>
 #include <RmlUi/Core/ID.h>
@@ -58,6 +59,19 @@ namespace {
         }
     };
     BpiwEventListener bpiw_event_listener;
+
+    class BufferPanelAddOptionsEventListener : public Rml::EventListener {
+      public:
+        void ProcessEvent(Rml::Event &event) override {
+            switch (event.GetId()) {
+            case Rml::EventId::Blur: {
+                event.GetCurrentElement()->SetAttribute("style", "display: none;");
+            } break;
+            default: break;
+            }
+        }
+    };
+    BufferPanelAddOptionsEventListener buffer_panel_add_options_event_listener;
 } // namespace
 
 void BufferPanel::load(Rml::Context *rml_context, Rml::ElementDocument *document) {
@@ -69,9 +83,10 @@ void BufferPanel::load(Rml::Context *rml_context, Rml::ElementDocument *document
     base_element->AddEventListener(Rml::EventId::Keyup, &buffer_panel_event_listener);
 
     bpiw_element = document->GetElementById("bpiw");
-    bpiw_element->AddEventListener(Rml::EventId::Mousedown, &bpiw_event_listener);
-    bpiw_element->AddEventListener(Rml::EventId::Mouseup, &bpiw_event_listener);
     bpiw_element->AddEventListener(Rml::EventId::Blur, &bpiw_event_listener);
+
+    auto *buffer_panel_add_panel = document->GetElementById("buffer_panel_add_panel");
+    buffer_panel_add_panel->AddEventListener(Rml::EventId::Blur, &buffer_panel_add_options_event_listener);
 
     tabs_element = dynamic_cast<Rml::ElementTabSet *>(document->GetElementById("buffer_tabs"));
 }
@@ -79,10 +94,7 @@ void BufferPanel::load(Rml::Context *rml_context, Rml::ElementDocument *document
 void replace_all(std::string &s, std::string const &toReplace, std::string const &replaceWith, bool wordBoundary = false);
 
 void BufferPanel::process_event(Rml::Event &event, std::string const &value) {
-    if (value == "buffer_panel_ichannel0_settings" ||
-        value == "buffer_panel_ichannel1_settings" ||
-        value == "buffer_panel_ichannel2_settings" ||
-        value == "buffer_panel_ichannel3_settings") {
+    if (value == "buffer_panel_ichannel_settings") {
         auto *ichannel = event.GetCurrentElement()->GetParentNode()->GetParentNode()->GetChild(0);
         auto *ichannel_img = ichannel->GetChild(0);
         auto *ichannel_sampler_menu = ichannel->GetChild(1);
@@ -169,9 +181,11 @@ void BufferPanel::process_event(Rml::Event &event, std::string const &value) {
 
             auto *ichannel_img = ichannel->GetChild(0);
             auto *ichannel_sampler_menu = ichannel->GetChild(1);
+            auto *ichannel_close = ichannel->GetChild(2);
 
             ichannel_img->SetAttribute("src", img_path);
             ichannel_img->SetAttribute("style", "display: inline-block; image-color: #ffffff;");
+            ichannel_close->SetAttribute("style", "display: inline-block;");
             ichannel_sampler_menu->SetAttribute("style", "display: none;");
             ichannel_label_settings->SetAttribute("style", "display: block;");
 
@@ -181,8 +195,6 @@ void BufferPanel::process_event(Rml::Event &event, std::string const &value) {
 
             auto *bpiw_tabs = dynamic_cast<Rml::ElementTabSet *>(bpiw_element->GetElementById("bpiw_tabs"));
 
-            auto new_input = nlohmann::json{};
-            new_input["id"] = std::to_string(std::hash<std::string>{}(img_path));
             replace_all(img_path, "../../media/images/", "/media/a/");
             auto default_sampler = nlohmann::json{};
             default_sampler["filter"] = "linear";
@@ -191,82 +203,64 @@ void BufferPanel::process_event(Rml::Event &event, std::string const &value) {
             default_sampler["srgb"] = "false";
             default_sampler["internal"] = "byte";
 
+            auto new_input = nlohmann::json{};
+            new_input["id"] = std::to_string(std::hash<std::string>{}(img_path));
+            new_input["channel"] = channel_index;
+            new_input["sampler"] = default_sampler;
+            new_input["published"] = 1;
+
             switch (bpiw_tabs->GetActiveTab()) {
             case 0: {
                 if (img_path == "../../media/icons/keyboard.png") {
                     new_input["filepath"] = "/presets/tex00.jpg";
                     new_input["type"] = "keyboard";
-                    new_input["channel"] = channel_index;
-                    new_input["sampler"] = default_sampler;
                     new_input["sampler"]["filter"] = "nearest";
-                    new_input["published"] = 1;
                 } else if (img_path == "../../media/icons/buffer00.png") {
                     auto *input_pass = find_pass("Buffer A");
                     if (input_pass != nullptr) {
                         new_input["id"] = (*input_pass)["outputs"][0]["id"];
                         new_input["filepath"] = "/media/previz/buffer00.png";
                         new_input["type"] = "buffer";
-                        new_input["channel"] = channel_index;
-                        new_input["sampler"] = default_sampler;
-                        new_input["published"] = 1;
                     }
                 } else if (img_path == "../../media/icons/buffer01.png") {
                     auto *input_pass = find_pass("Buffer B");
                     if (input_pass != nullptr) {
                         new_input["id"] = (*input_pass)["outputs"][0]["id"];
-                        new_input["filepath"] = "/media/previz/buffer00.png";
+                        new_input["filepath"] = "/media/previz/buffer01.png";
                         new_input["type"] = "buffer";
-                        new_input["channel"] = channel_index;
-                        new_input["sampler"] = default_sampler;
-                        new_input["published"] = 1;
                     }
                 } else if (img_path == "../../media/icons/buffer02.png") {
                     auto *input_pass = find_pass("Buffer C");
                     if (input_pass != nullptr) {
                         new_input["id"] = (*input_pass)["outputs"][0]["id"];
-                        new_input["filepath"] = "/media/previz/buffer00.png";
+                        new_input["filepath"] = "/media/previz/buffer02.png";
                         new_input["type"] = "buffer";
-                        new_input["channel"] = channel_index;
-                        new_input["sampler"] = default_sampler;
-                        new_input["published"] = 1;
                     }
                 } else if (img_path == "../../media/icons/buffer03.png") {
                     auto *input_pass = find_pass("Buffer D");
                     if (input_pass != nullptr) {
                         new_input["id"] = (*input_pass)["outputs"][0]["id"];
-                        new_input["filepath"] = "/media/previz/buffer00.png";
+                        new_input["filepath"] = "/media/previz/buffer03.png";
                         new_input["type"] = "buffer";
-                        new_input["channel"] = channel_index;
-                        new_input["sampler"] = default_sampler;
-                        new_input["published"] = 1;
                     }
                 } else if (img_path == "../../media/icons/cubemap00.png") {
-                    auto *input_pass = find_pass("Cubemap A");
+                    auto *input_pass = find_pass("Cube A");
                     if (input_pass != nullptr) {
                         new_input["id"] = (*input_pass)["outputs"][0]["id"];
                         new_input["filepath"] = "/media/previz/cubemap00.png";
                         new_input["type"] = "cubemap";
-                        new_input["channel"] = channel_index;
-                        new_input["sampler"] = default_sampler;
-                        new_input["published"] = 1;
                     }
                 }
             } break;
             case 1: {
                 new_input["filepath"] = img_path;
                 new_input["type"] = "texture";
-                new_input["channel"] = channel_index;
-                new_input["sampler"] = default_sampler;
                 new_input["sampler"]["filter"] = "mipmap";
                 new_input["sampler"]["wrap"] = "repeat";
-                new_input["published"] = 1;
             } break;
             case 2: {
                 new_input["filepath"] = img_path;
                 new_input["type"] = "cubemap";
-                new_input["channel"] = channel_index;
-                new_input["sampler"] = default_sampler;
-                new_input["published"] = 1;
             } break;
             }
 
@@ -277,19 +271,223 @@ void BufferPanel::process_event(Rml::Event &event, std::string const &value) {
                 pass["inputs"].push_back(new_input);
             }
 
-            // auto &pass_inputs = pass["inputs"];
-            // [channel_index]["sampler"]["wrap"] = wrap_select->GetValue();
-
             bpiw_element->SetAttribute("style", "display: none;");
             bpiw_element->Blur();
             dirty = true;
         }
     }
+    if (value == "buffer_panel_ichannel_close") {
+        auto *datagrid_column = event.GetCurrentElement()->GetParentNode()->GetParentNode();
+        auto *ichannel = datagrid_column->GetChild(0);
+
+        auto ichannel_name = ichannel->GetId();
+        auto &pass = *find_pass(tab_div_content->GetText());
+        auto channel_index = int(ichannel_name[8]) - int('0');
+
+        int current_index = 0;
+        for (auto &input : pass["inputs"]) {
+            if (input["channel"] == channel_index) {
+                auto *ichannel_label = datagrid_column->GetChild(1);
+                auto *ichannel_label_settings = ichannel_label->GetChild(1);
+
+                auto *ichannel_img = ichannel->GetChild(0);
+                auto *ichannel_sampler_menu = ichannel->GetChild(1);
+                auto *ichannel_close = ichannel->GetChild(2);
+
+                ichannel_img->SetAttribute("style", "display: inline-block; image-color: #000000;");
+                ichannel_img->SetAttribute("src", "");
+                ichannel_close->SetAttribute("style", "display: none;");
+                ichannel_sampler_menu->SetAttribute("style", "display: none;");
+                ichannel_label_settings->SetAttribute("style", "display: none;");
+
+                pass["inputs"].erase(current_index);
+                dirty = true;
+                break;
+            }
+            ++current_index;
+        }
+    }
+    if (value == "buffer_panel_add") {
+        auto *buffer_panel_add_panel = event.GetCurrentElement()->GetElementById("buffer_panel_add_panel");
+        buffer_panel_add_panel->SetAttribute("style", "display: inline-block;");
+        buffer_panel_add_panel->Focus();
+
+        auto *buffer_panel_add_common = buffer_panel_add_panel->GetElementById("buffer_panel_add_common");
+        auto *buffer_panel_add_buffer00 = buffer_panel_add_panel->GetElementById("buffer_panel_add_buffer00");
+        auto *buffer_panel_add_buffer01 = buffer_panel_add_panel->GetElementById("buffer_panel_add_buffer01");
+        auto *buffer_panel_add_buffer02 = buffer_panel_add_panel->GetElementById("buffer_panel_add_buffer02");
+        auto *buffer_panel_add_buffer03 = buffer_panel_add_panel->GetElementById("buffer_panel_add_buffer03");
+        auto *buffer_panel_add_cubemap00 = buffer_panel_add_panel->GetElementById("buffer_panel_add_cubemap00");
+
+        auto add_option_to_list = [&](auto &&name, auto *option_element) {
+            auto *channel_input = find_pass(name);
+            if (channel_input != nullptr) {
+                // pass already exists, hide it
+                option_element->SetAttribute("style", "display: none;");
+            } else {
+                // show it in the list
+                option_element->SetAttribute("style", "display: block;");
+            }
+        };
+
+        add_option_to_list("Common", buffer_panel_add_common);
+        add_option_to_list("Buffer A", buffer_panel_add_buffer00);
+        add_option_to_list("Buffer B", buffer_panel_add_buffer01);
+        add_option_to_list("Buffer C", buffer_panel_add_buffer02);
+        add_option_to_list("Buffer D", buffer_panel_add_buffer03);
+        add_option_to_list("Cube A", buffer_panel_add_cubemap00);
+    }
+    if (value == "buffer_panel_add_option") {
+        auto *buffer_panel_add_panel = event.GetCurrentElement()->GetElementById("buffer_panel_add_panel");
+        buffer_panel_add_panel->SetAttribute("style", "display: none;");
+        buffer_panel_add_panel->Blur();
+
+        // Add the buffer to the passes
+        // NOTE(grundlett): I'll just modify the json and reload it...
+
+        auto &renderpasses = json["renderpass"];
+
+        auto new_pass = nlohmann::json{};
+        auto element_id = event.GetCurrentElement()->GetId();
+
+        auto iter = renderpasses.begin();
+
+        if (element_id != "buffer_panel_add_common") {
+            // find image pass
+            while (iter != renderpasses.end()) {
+                // Buffer passes should always be before the cube/image passes.
+                if ((*iter)["name"] == "Image" || (*iter)["name"] == "Cube A") {
+                    break;
+                }
+                ++iter;
+            }
+        }
+
+        if (iter == renderpasses.end()) {
+            // should never happen
+            return;
+        }
+
+        if (element_id == "buffer_panel_add_common") {
+            new_pass = nlohmann::json::parse(R"({
+                "outputs": [],
+                "inputs": [],
+                "code": "vec4 someFunction( vec4 a, float b )\n{\n    return a+b;\n}",
+                "name": "Common",
+                "description": "",
+                "type": "common"
+            })");
+        } else if (element_id == "buffer_panel_add_buffer00") {
+            new_pass = nlohmann::json::parse(R"({
+                "outputs": [
+                    {
+                        "channel": 0,
+                        "id": "4dXGR8"
+                    }
+                ],
+                "inputs": [],
+                "code": "void mainImage( out vec4 fragColor, in vec2 fragCoord )\n{\n    fragColor = vec4(0.0,0.0,1.0,1.0);\n}",
+                "name": "Buffer A",
+                "description": "",
+                "type": "buffer"
+            })");
+        } else if (element_id == "buffer_panel_add_buffer01") {
+            new_pass = nlohmann::json::parse(R"({
+                "outputs": [
+                    {
+                        "channel": 0,
+                        "id": "XsXGR8"
+                    }
+                ],
+                "inputs": [],
+                "code": "void mainImage( out vec4 fragColor, in vec2 fragCoord )\n{\n    fragColor = vec4(0.0,0.0,1.0,1.0);\n}",
+                "name": "Buffer B",
+                "description": "",
+                "type": "buffer"
+            })");
+        } else if (element_id == "buffer_panel_add_buffer02") {
+            new_pass = nlohmann::json::parse(R"({
+                "outputs": [
+                    {
+                        "channel": 0,
+                        "id": "4sXGR8"
+                    }
+                ],
+                "inputs": [],
+                "code": "void mainImage( out vec4 fragColor, in vec2 fragCoord )\n{\n    fragColor = vec4(0.0,0.0,1.0,1.0);\n}",
+                "name": "Buffer C",
+                "description": "",
+                "type": "buffer"
+            })");
+        } else if (element_id == "buffer_panel_add_buffer03") {
+            new_pass = nlohmann::json::parse(R"({
+                "outputs": [
+                    {
+                        "channel": 0,
+                        "id": "XdfGR8"
+                    }
+                ],
+                "inputs": [],
+                "code": "void mainImage( out vec4 fragColor, in vec2 fragCoord )\n{\n    fragColor = vec4(0.0,0.0,1.0,1.0);\n}",
+                "name": "Buffer D",
+                "description": "",
+                "type": "buffer"
+            })");
+        } else if (element_id == "buffer_panel_add_cubemap00") {
+            new_pass = nlohmann::json::parse(R"({
+                "outputs": [
+                    {
+                        "channel": 0,
+                        "id": "4dX3Rr"
+                    }
+                ],
+                "inputs": [],
+                "code": "void mainCubemap( out vec4 fragColor, in vec2 fragCoord, in vec3 rayOri, in vec3 rayDir )\n{\n    // Ray direction as color\n    vec3 col = 0.5 + 0.5*rayDir;\n\n    // Output to cubemap\n    fragColor = vec4(col,1.0);\n}",
+                "name": "Cube A",
+                "description": "",
+                "type": "cubemap"
+            })");
+        }
+
+        auto tab_index = static_cast<int32_t>(iter - renderpasses.begin());
+
+        renderpasses.insert(iter, new_pass);
+        reload_json();
+
+        tabs_element->SetActiveTab(tab_index);
+    }
+    if (value == "buffer_panel_tab_close") {
+        auto &renderpasses = json["renderpass"];
+
+        auto new_pass = nlohmann::json{};
+        auto *element = event.GetCurrentElement();
+        auto *parent = element->GetParentNode();
+        auto *content_div = parent->GetChild(1);
+        auto *tab_content = dynamic_cast<Rml::ElementText *>(content_div->GetChild(0));
+
+        auto name = tab_content->GetText();
+
+        auto iter = renderpasses.begin();
+        while (iter != renderpasses.end()) {
+            if ((*iter)["name"] == name) {
+                break;
+            }
+            ++iter;
+        }
+
+        if (iter == renderpasses.end()) {
+            // Should never happen
+            return;
+        }
+
+        renderpasses.erase(iter);
+        // Cope because we are about to rebuild the UI while it's propagating the events
+        event.StopImmediatePropagation();
+        reload_json();
+    }
 }
 
 void BufferPanel::load_shadertoy_json(nlohmann::json const &temp_json) {
-    during_shader_load = true;
-
     if (temp_json.contains("numShaders")) {
         // Is a "export all shaders" json file. Let's split it up for the user.
         for (auto &shader : temp_json["shaders"]) {
@@ -302,6 +500,10 @@ void BufferPanel::load_shadertoy_json(nlohmann::json const &temp_json) {
     } else {
         json = temp_json;
     }
+    reload_json();
+}
+void BufferPanel::reload_json() {
+    during_shader_load = true;
 
     auto &renderpasses = json["renderpass"];
 
@@ -321,6 +523,9 @@ void BufferPanel::load_shadertoy_json(nlohmann::json const &temp_json) {
         tabs_element->SetTab(tab_index, fmt::format("<template src=\"buffer_tab\">{}</template>", name));
         tabs_element->SetPanel(tab_index, "<template src=\"buffer_panel\"> </template>");
 
+        auto *tabs = tabs_element->GetChild(0);
+        auto *tab = tabs->GetChild(tab_index);
+
         auto *panels = tabs_element->GetChild(1);
         auto *panel = panels->GetChild(tab_index);
         auto *datagrid = panel->GetChild(0);
@@ -339,6 +544,7 @@ void BufferPanel::load_shadertoy_json(nlohmann::json const &temp_json) {
 
                 auto *ichannel_img = ichannel->GetChild(0);
                 auto *ichannel_sampler_menu = ichannel->GetChild(1);
+                auto *ichannel_close = ichannel->GetChild(2);
 
                 bool has_input = false;
 
@@ -410,17 +616,21 @@ void BufferPanel::load_shadertoy_json(nlohmann::json const &temp_json) {
 
                 if (has_input) {
                     ichannel_img->SetAttribute("style", "display: inline-block; image-color: #ffffff;");
+                    ichannel_close->SetAttribute("style", "display: inline-block;");
                     ichannel_sampler_menu->SetAttribute("style", "display: none;");
                     ichannel_label_settings->SetAttribute("style", "display: block;");
                 } else {
                     ichannel_img->SetAttribute("style", "display: inline-block; image-color: #000000;");
                     ichannel_img->SetAttribute("src", "");
+                    ichannel_close->SetAttribute("style", "display: none;");
                     ichannel_sampler_menu->SetAttribute("style", "display: none;");
                     ichannel_label_settings->SetAttribute("style", "display: none;");
                 }
             }
 
             if (name == "Image") {
+                auto *tab_close_element = tab->GetChild(2);
+                tab_close_element->SetAttribute("style", "display: none;");
                 tabs_element->SetActiveTab(tab_index);
             }
         }

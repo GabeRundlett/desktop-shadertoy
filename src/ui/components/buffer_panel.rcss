@@ -14,6 +14,7 @@ tabset {
 
 tabs {
     display: inline-block;
+    margin-left: 26px;
     position: fixed;
     clip: none;
     text-align: right;
@@ -73,18 +74,30 @@ panel {
     height: 15px;
 }
 
-#ichannel_settings {
+.ichannel_settings {
     position: absolute;
     right: 9px;
     bottom: 0px;
     image-color: black;
 }
 
-#ichannel_settings:hover {
+.ichannel_settings:hover {
     bottom: -1px;
     margin-left: -1px;
     margin-right: -1px;
     border: 1px black;
+}
+
+.ichannel_close {
+    position: absolute;
+    right: 8px;
+    top: 0px;
+    border: 1px rgb(0, 0, 0);
+    background-color: #0000009a;
+}
+
+.ichannel_close:hover {
+    border: 1px rgb(255, 255, 255);
 }
 
 .ichannel {
@@ -148,6 +161,42 @@ panel {
     position: absolute;
     top: 1px;
     right: 2px;
+}
+
+#buffer_add {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: 20px;
+    height: 20px;
+    border: 1px;
+    border-color: #00000000;
+    background-color: #8d8d8d;
+    image-color: black;
+}
+
+#buffer_add:hover {
+    border: 1px;
+    border-color: #000000;
+}
+
+#buffer_panel_add_panel {
+    position: absolute;
+    left: 26px;
+    border: 1px;
+    top: 4px;
+    background-color: #eeeeee;
+    border-color: #b6b6b6;
+}
+
+.buffer_panel_add_option {
+    margin: 3px;
+    padding: 3px;
+    height: 18px;
+}
+
+.buffer_panel_add_option:hover {
+    background-color: #d8d8d8;
 }
 
 #bpiw {

@@ -19,7 +19,8 @@
     "rmlui",
     "openssl",
     "boost-asio",
-    "boost-beast"
+    "boost-beast",
+    "nativefiledialog"
   ],
   "builtin-baseline": "78ba9711d30c64a6b40462c72f356c681e2255f3",
   "vcpkg-configuration": {

@@ -38,6 +38,25 @@
                 </button>
             </div>
             <div id="buffer_panel">
+                <img onclick="buffer_panel_add" id="buffer_add" src="../../media/icons/add.png"></img>
+                <div id="buffer_panel_add_panel" style="display: none;">
+                    <datagrid>
+                        <col width="120px">
+                        <div onclick="buffer_panel_add_option" class="buffer_panel_add_option" style="display: none;"
+                            id="buffer_panel_add_common">Common</div>
+                        <div onclick="buffer_panel_add_option" class="buffer_panel_add_option" style="display: none;"
+                            id="buffer_panel_add_buffer00">Buffer A</div>
+                        <div onclick="buffer_panel_add_option" class="buffer_panel_add_option" style="display: none;"
+                            id="buffer_panel_add_buffer01">Buffer B</div>
+                        <div onclick="buffer_panel_add_option" class="buffer_panel_add_option" style="display: none;"
+                            id="buffer_panel_add_buffer02">Buffer C</div>
+                        <div onclick="buffer_panel_add_option" class="buffer_panel_add_option" style="display: none;"
+                            id="buffer_panel_add_buffer03">Buffer D</div>
+                        <div onclick="buffer_panel_add_option" class="buffer_panel_add_option" style="display: none;"
+                            id="buffer_panel_add_cubemap00">Cube A</div>
+                        </col>
+                    </datagrid>
+                </div>
                 <tabset id="buffer_tabs">
                 </tabset>
             </div>

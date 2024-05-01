@@ -31,7 +31,7 @@ struct AppWindow {
     std::function<void(int32_t, int32_t)> on_key{};
     std::function<void(std::span<char const *>)> on_drop{};
 
-    using RmlKeyDownCallback = std::function<bool(Rml::Context *context, Rml::Input::KeyIdentifier key, int key_modifier, float native_dp_ratio, bool priority)>;
+    using RmlKeyDownCallback = std::function<bool(Rml::Context *context, Rml::Input::KeyIdentifier key, int key_modifier, int glfw_action, float native_dp_ratio, bool priority)>;
     RmlKeyDownCallback key_down_callback{};
 
     AppWindow() = default;

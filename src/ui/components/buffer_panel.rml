@@ -23,11 +23,13 @@
                         <option class="option" value="repeat" selected>repeat</option>
                     </select>
                 </div>
+                <img class="ichannel_close" onclick="buffer_panel_ichannel_close"
+                    src="../../media/icons/close.png"></img>
             </div>
             <div id="ichannel_label">
                 iChannel0
-                <button onclick="buffer_panel_ichannel0_settings">
-                    <img id="ichannel_settings" src="../../media/icons/settings.png"></img>
+                <button onclick="buffer_panel_ichannel_settings">
+                    <img class="ichannel_settings" src="../../media/icons/settings.png"></img>
                 </button>
             </div>
             </col>
@@ -48,11 +50,13 @@
                         <option class="option" value="repeat" selected>repeat</option>
                     </select>
                 </div>
+                <img class="ichannel_close" onclick="buffer_panel_ichannel_close"
+                    src="../../media/icons/close.png"></img>
             </div>
             <div id="ichannel_label">
                 iChannel1
-                <button onclick="buffer_panel_ichannel1_settings">
-                    <img id="ichannel_settings" src="../../media/icons/settings.png"></img>
+                <button onclick="buffer_panel_ichannel_settings">
+                    <img class="ichannel_settings" src="../../media/icons/settings.png"></img>
                 </button>
             </div>
             </col>
@@ -73,11 +77,13 @@
                         <option class="option" value="repeat" selected>repeat</option>
                     </select>
                 </div>
+                <img class="ichannel_close" onclick="buffer_panel_ichannel_close"
+                    src="../../media/icons/close.png"></img>
             </div>
             <div id="ichannel_label">
                 iChannel2
-                <button onclick="buffer_panel_ichannel2_settings">
-                    <img id="ichannel_settings" src="../../media/icons/settings.png"></img>
+                <button onclick="buffer_panel_ichannel_settings">
+                    <img class="ichannel_settings" src="../../media/icons/settings.png"></img>
                 </button>
             </div>
             </col>
@@ -98,11 +104,13 @@
                         <option class="option" value="repeat" selected>repeat</option>
                     </select>
                 </div>
+                <img class="ichannel_close" onclick="buffer_panel_ichannel_close"
+                    src="../../media/icons/close.png"></img>
             </div>
             <div id="ichannel_label">
                 iChannel3
-                <button onclick="buffer_panel_ichannel3_settings">
-                    <img id="ichannel_settings" src="../../media/icons/settings.png"></img>
+                <button onclick="buffer_panel_ichannel_settings">
+                    <img class="ichannel_settings" src="../../media/icons/settings.png"></img>
                 </button>
             </div>
             </col>

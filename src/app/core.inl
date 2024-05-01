@@ -1,6 +1,5 @@
 #pragma once
 
-#include <daxa/daxa.inl>
 #include <daxa/utils/task_graph.inl>
 
 #if defined(__cplusplus)
