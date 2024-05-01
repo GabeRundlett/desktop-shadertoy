@@ -2,6 +2,7 @@
 
 #include <GLFW/glfw3.h>
 #include <daxa/c/core.h>
+#include <daxa/utils/task_graph_types.hpp>
 #include <stb_image.h>
 
 #include <unordered_map>
@@ -11,6 +12,8 @@
 #include <regex>
 
 #include <fstream>
+
+#include <daxa/utils/task_graph.hpp>
 
 enum struct ShaderToyFilter {
     NEAREST,
@@ -24,48 +27,36 @@ enum struct ShaderToyWrap {
 
 #define MAX_MIP 9
 
-struct MipMapTask {
-    struct Uses {
-        daxa::ImageTransferRead<> lower_mip{};
-        daxa::ImageTransferWrite<> higher_mip{};
-    } uses = {};
-    std::string name = "mip map";
-    uint32_t mip = {};
-    void callback(daxa::TaskInterface ti) {
-        auto &recorder = ti.get_recorder();
-        auto do_blit = [&](daxa::ImageTransferRead<> &lower_mip, daxa::ImageTransferWrite<> &higher_mip) {
-            auto image_size = ti.get_device().info_image(lower_mip.image()).value().size;
-            auto mip_size = std::array<int32_t, 3>{
-                std::max<int32_t>(1, static_cast<int32_t>(image_size.x / (1u << mip))),
-                std::max<int32_t>(1, static_cast<int32_t>(image_size.y / (1u << mip))),
-                std::max<int32_t>(1, static_cast<int32_t>(image_size.z / (1u << mip))),
-            };
-            auto next_mip_size = std::array<int32_t, 3>{
-                std::max<int32_t>(1, static_cast<int32_t>(image_size.x / (2u << mip))),
-                std::max<int32_t>(1, static_cast<int32_t>(image_size.y / (2u << mip))),
-                std::max<int32_t>(1, static_cast<int32_t>(image_size.z / (2u << mip))),
-            };
-            recorder.blit_image_to_image({
-                .src_image = lower_mip.image(),
-                .dst_image = higher_mip.image(),
-                .src_slice = {
-                    .mip_level = mip,
-                    .base_array_layer = 0,
-                    .layer_count = 1,
-                },
-                .src_offsets = {{{0, 0, 0}, {mip_size[0], mip_size[1], mip_size[2]}}},
-                .dst_slice = {
-                    .mip_level = mip + 1,
-                    .base_array_layer = 0,
-                    .layer_count = 1,
-                },
-                .dst_offsets = {{{0, 0, 0}, {next_mip_size[0], next_mip_size[1], next_mip_size[2]}}},
-                .filter = daxa::Filter::LINEAR,
-            });
-        };
-        do_blit(uses.lower_mip, uses.higher_mip);
-    }
-};
+auto do_blit(daxa::TaskInterface ti, daxa::ImageId lower_mip, daxa::ImageId higher_mip, uint32_t mip) {
+    auto image_size = ti.device.info_image(lower_mip).value().size;
+    auto mip_size = std::array<int32_t, 3>{
+        std::max<int32_t>(1, static_cast<int32_t>(image_size.x / (1u << mip))),
+        std::max<int32_t>(1, static_cast<int32_t>(image_size.y / (1u << mip))),
+        std::max<int32_t>(1, static_cast<int32_t>(image_size.z / (1u << mip))),
+    };
+    auto next_mip_size = std::array<int32_t, 3>{
+        std::max<int32_t>(1, static_cast<int32_t>(image_size.x / (2u << mip))),
+        std::max<int32_t>(1, static_cast<int32_t>(image_size.y / (2u << mip))),
+        std::max<int32_t>(1, static_cast<int32_t>(image_size.z / (2u << mip))),
+    };
+    ti.recorder.blit_image_to_image({
+        .src_image = lower_mip,
+        .dst_image = higher_mip,
+        .src_slice = {
+            .mip_level = mip,
+            .base_array_layer = 0,
+            .layer_count = 1,
+        },
+        .src_offsets = {{{0, 0, 0}, {mip_size[0], mip_size[1], mip_size[2]}}},
+        .dst_slice = {
+            .mip_level = mip + 1,
+            .base_array_layer = 0,
+            .layer_count = 1,
+        },
+        .dst_offsets = {{{0, 0, 0}, {next_mip_size[0], next_mip_size[1], next_mip_size[2]}}},
+        .filter = daxa::Filter::LINEAR,
+    });
+}
 
 void GpuInputUploadTransferTask_record(daxa::Device &device, daxa::CommandRecorder &cmd_list, daxa::BufferId input_buffer, GpuInput &gpu_input) {
     auto staging_input_buffer = device.create_buffer({
@@ -300,23 +291,23 @@ auto Viewport::record(daxa::TaskGraph &task_graph) -> daxa::TaskImageView {
 
     // GpuInputUploadTransferTask
     task_graph.add_task({
-        .uses = {
-            daxa::TaskBufferUse<daxa::TaskBufferAccess::TRANSFER_WRITE>{task_input_buffer},
+        .attachments = {
+            daxa::inl_attachment(daxa::TaskBufferAccess::TRANSFER_WRITE, task_input_buffer),
         },
         .task = [this, task_input_buffer](daxa::TaskInterface const &ti) {
-            auto &cmd_list = ti.get_recorder();
-            GpuInputUploadTransferTask_record(daxa_device, cmd_list, ti.uses[task_input_buffer].buffer(), gpu_input);
+            auto &cmd_list = ti.recorder;
+            GpuInputUploadTransferTask_record(daxa_device, cmd_list, ti.get(daxa::TaskBufferAttachmentIndex{0}).ids[0], gpu_input);
         },
         .name = "GpuInputUploadTransferTask",
     });
 
     // KeyboardInputUploadTask
     task_graph.add_task({
-        .uses = {
-            daxa::TaskImageUse<daxa::TaskImageAccess::TRANSFER_WRITE, daxa::ImageViewType::REGULAR_2D>{task_keyboard_image},
+        .attachments = {
+            daxa::inl_attachment(daxa::TaskImageAccess::TRANSFER_WRITE, daxa::ImageViewType::REGULAR_2D, task_keyboard_image),
         },
         .task = [this, task_keyboard_image](daxa::TaskInterface const &ti) {
-            auto &cmd_list = ti.get_recorder();
+            auto &cmd_list = ti.recorder;
             auto staging_buffer = daxa_device.create_buffer({
                 .size = sizeof(KeyboardInput),
                 .allocate_info = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM,
@@ -327,7 +318,7 @@ auto Viewport::record(daxa::TaskGraph &task_graph) -> daxa::TaskImageView {
             *buffer_ptr = keyboard_input;
             cmd_list.copy_buffer_to_image({
                 .buffer = staging_buffer,
-                .image = ti.uses[task_keyboard_image].image(),
+                .image = ti.get(task_keyboard_image).ids[0],
                 .image_extent = {256, 3, 1},
             });
         },
@@ -382,23 +373,23 @@ auto Viewport::record(daxa::TaskGraph &task_graph) -> daxa::TaskImageView {
             auto output_image_view_a = pass.buffer.task_resources.history_resource.view().view({.level_count = MAX_MIP});
             auto output_image_view_b = new_buffer.task_resources.output_resource.view().view({.level_count = MAX_MIP});
             temp_task_graph.add_task({
-                .uses = {
-                    daxa::TaskImageUse<daxa::TaskImageAccess::TRANSFER_READ>{output_image_view_a},
-                    daxa::TaskImageUse<daxa::TaskImageAccess::TRANSFER_WRITE>{output_image_view_b},
+                .attachments = {
+                    daxa::inl_attachment(daxa::TaskImageAccess::TRANSFER_READ, daxa::ImageViewType::REGULAR_2D, output_image_view_a),
+                    daxa::inl_attachment(daxa::TaskImageAccess::TRANSFER_WRITE, daxa::ImageViewType::REGULAR_2D, output_image_view_b),
                 },
                 .task = [output_image_view_a, output_image_view_b](daxa::TaskInterface const &ti) {
-                    auto &recorder = ti.get_recorder();
-                    auto size_a = ti.get_device().info_image(ti.uses[output_image_view_a].image()).value().size;
-                    auto size_b = ti.get_device().info_image(ti.uses[output_image_view_b].image()).value().size;
+                    auto &recorder = ti.recorder;
+                    auto size_a = ti.device.info_image(ti.get(output_image_view_a).ids[0]).value().size;
+                    auto size_b = ti.device.info_image(ti.get(output_image_view_b).ids[0]).value().size;
                     auto size = daxa_i32vec2{
                         std::min(static_cast<int32_t>(size_a.x), static_cast<int32_t>(size_b.x)),
                         std::min(static_cast<int32_t>(size_a.y), static_cast<int32_t>(size_b.y)),
                     };
                     recorder.blit_image_to_image({
-                        .src_image = ti.uses[output_image_view_a].image(),
-                        .src_image_layout = ti.uses[output_image_view_a].layout(),
-                        .dst_image = ti.uses[output_image_view_b].image(),
-                        .dst_image_layout = ti.uses[output_image_view_b].layout(),
+                        .src_image = ti.get(output_image_view_a).ids[0],
+                        .src_image_layout = ti.get(output_image_view_a).layout,
+                        .dst_image = ti.get(output_image_view_b).ids[0],
+                        .dst_image_layout = ti.get(output_image_view_b).layout,
                         .src_offsets = {{{0, 0, 0}, {size.x, size.y, 1}}},
                         .dst_offsets = {{{0, 0, 0}, {size.x, size.y, 1}}},
                         .filter = daxa::Filter::NEAREST,
@@ -437,37 +428,37 @@ auto Viewport::record(daxa::TaskGraph &task_graph) -> daxa::TaskImageView {
     }
 
     for (auto &pass : buffer_passes) {
-        auto uses = std::vector<daxa::GenericTaskResourceUse>{};
-        uses.push_back(daxa::TaskBufferUse<daxa::TaskBufferAccess::FRAGMENT_SHADER_READ>{task_input_buffer});
+        auto uses = std::vector<daxa::TaskAttachmentInfo>{};
+        uses.push_back(daxa::inl_attachment(daxa::TaskBufferAccess::FRAGMENT_SHADER_READ, task_input_buffer));
         for (auto const &input : pass.inputs) {
             if (input.type == ShaderPassInputType::CUBE || input.type == ShaderPassInputType::CUBE_TEXTURE) {
-                uses.push_back(daxa::TaskImageUse<daxa::TaskImageAccess::FRAGMENT_SHADER_SAMPLED, daxa::ImageViewType::CUBE>{get_resource_view_slice(input)});
+                uses.push_back(daxa::inl_attachment(daxa::TaskImageAccess::FRAGMENT_SHADER_SAMPLED, daxa::ImageViewType::CUBE, get_resource_view_slice(input)));
             } else if (input.type == ShaderPassInputType::VOLUME_TEXTURE) {
-                uses.push_back(daxa::TaskImageUse<daxa::TaskImageAccess::FRAGMENT_SHADER_SAMPLED, daxa::ImageViewType::REGULAR_3D>{get_resource_view_slice(input)});
+                uses.push_back(daxa::inl_attachment(daxa::TaskImageAccess::FRAGMENT_SHADER_SAMPLED, daxa::ImageViewType::REGULAR_3D, get_resource_view_slice(input)));
             } else {
-                uses.push_back(daxa::TaskImageUse<daxa::TaskImageAccess::FRAGMENT_SHADER_SAMPLED, daxa::ImageViewType::REGULAR_2D>{get_resource_view_slice(input)});
+                uses.push_back(daxa::inl_attachment(daxa::TaskImageAccess::FRAGMENT_SHADER_SAMPLED, daxa::ImageViewType::REGULAR_2D, get_resource_view_slice(input)));
             }
         }
         auto pipeline = pass.pipeline;
         auto inputs = pass.inputs;
         auto output_view = pass.buffer.task_resources.output_resource.view();
-        uses.push_back(daxa::TaskImageUse<daxa::TaskImageAccess::COLOR_ATTACHMENT, daxa::ImageViewType::REGULAR_2D>{output_view});
+        uses.push_back(daxa::inl_attachment(daxa::TaskImageAccess::COLOR_ATTACHMENT, daxa::ImageViewType::REGULAR_2D, output_view));
         task_graph.add_task({
-            .uses = uses,
+            .attachments = uses,
             .task = [this, &pass, task_input_buffer, get_resource_view_slice, pipeline, inputs, output_view](daxa::TaskInterface const &ti) {
-                auto &cmd_list = ti.get_recorder();
+                auto &cmd_list = ti.recorder;
                 auto input_images = InputImages{};
-                auto size = ti.get_device().info_image(ti.uses[output_view].image()).value().size;
+                auto size = ti.device.info_image(ti.get(output_view).ids[0]).value().size;
                 for (auto const &input : pass.inputs) {
-                    input_images.Channel[input.channel] = ti.uses[get_resource_view_slice(input)].view();
+                    input_images.Channel[input.channel] = ti.get(get_resource_view_slice(input)).view_ids[0];
                     input_images.Channel_sampler[input.channel] = input.sampler;
                 }
                 ShaderToyTask_record(
                     pipeline,
                     cmd_list,
-                    daxa_device.get_device_address(ti.uses[task_input_buffer].buffer()).value(),
+                    daxa_device.get_device_address(ti.get(task_input_buffer).ids[0]).value(),
                     input_images,
-                    ti.uses[output_view].image(),
+                    ti.get(output_view).ids[0],
                     daxa_u32vec2{size.x, size.y});
                 pass.recording_buffer_view = pass.buffer.task_resources.output_resource;
             },
@@ -475,56 +466,59 @@ auto Viewport::record(daxa::TaskGraph &task_graph) -> daxa::TaskImageView {
         });
         pass.recording_buffer_view = pass.buffer.task_resources.output_resource;
         if (pass.needs_mipmap) {
-            for (uint32_t i = 0; i < MAX_MIP - 1; ++i) {
-                task_graph.add_task(MipMapTask{
-                    .uses = {
-                        .lower_mip = output_view.view({.base_mip_level = i}),
-                        .higher_mip = output_view.view({.base_mip_level = i + 1}),
+            for (uint32_t mip = 0; mip < MAX_MIP - 1; ++mip) {
+                task_graph.add_task({
+                    .attachments = {
+                        daxa::inl_attachment(daxa::TaskImageAccess::TRANSFER_READ, daxa::ImageViewType::REGULAR_2D, output_view.view({.base_mip_level = mip})),
+                        daxa::inl_attachment(daxa::TaskImageAccess::TRANSFER_WRITE, daxa::ImageViewType::REGULAR_2D, output_view.view({.base_mip_level = mip + 1})),
                     },
-                    .name = std::string("mip map ") + std::to_string(i),
-                    .mip = i,
+                    .task = [mip](daxa::TaskInterface ti) {
+                        auto &recorder = ti.recorder;
+                        do_blit(ti, ti.get(daxa::TaskImageAttachmentIndex{0}).ids[0], ti.get(daxa::TaskImageAttachmentIndex{1}).ids[0], mip);
+                    },
+                    .name = std::string("mip map ") + std::to_string(mip),
                 });
             }
         }
     }
 
     for (auto &pass : cube_passes) {
-        auto uses = std::vector<daxa::GenericTaskResourceUse>{};
-        uses.push_back(daxa::TaskBufferUse<daxa::TaskBufferAccess::FRAGMENT_SHADER_READ>{task_input_buffer});
+        auto uses = std::vector<daxa::TaskAttachmentInfo>{};
+        uses.push_back(daxa::inl_attachment(daxa::TaskBufferAccess::FRAGMENT_SHADER_READ, task_input_buffer));
         for (auto const &input : pass.inputs) {
             if (input.type == ShaderPassInputType::CUBE || input.type == ShaderPassInputType::CUBE_TEXTURE) {
-                uses.push_back(daxa::TaskImageUse<daxa::TaskImageAccess::FRAGMENT_SHADER_SAMPLED, daxa::ImageViewType::CUBE>{get_resource_view_slice(input)});
+                uses.push_back(daxa::inl_attachment(daxa::TaskImageAccess::FRAGMENT_SHADER_SAMPLED, daxa::ImageViewType::CUBE, get_resource_view_slice(input)));
             } else if (input.type == ShaderPassInputType::VOLUME_TEXTURE) {
-                uses.push_back(daxa::TaskImageUse<daxa::TaskImageAccess::FRAGMENT_SHADER_SAMPLED, daxa::ImageViewType::REGULAR_3D>{get_resource_view_slice(input)});
+                uses.push_back(daxa::inl_attachment(daxa::TaskImageAccess::FRAGMENT_SHADER_SAMPLED, daxa::ImageViewType::REGULAR_3D, get_resource_view_slice(input)));
             } else {
-                uses.push_back(daxa::TaskImageUse<daxa::TaskImageAccess::FRAGMENT_SHADER_SAMPLED, daxa::ImageViewType::REGULAR_2D>{get_resource_view_slice(input)});
+                uses.push_back(daxa::inl_attachment(daxa::TaskImageAccess::FRAGMENT_SHADER_SAMPLED, daxa::ImageViewType::REGULAR_2D, get_resource_view_slice(input)));
             }
         }
         auto face_views = std::array<daxa::TaskImageView, 6>{};
         for (uint32_t i = 0; i < 6; ++i) {
             face_views[i] = pass.buffer.task_resources.output_resource.view().view({.base_array_layer = i});
-            uses.push_back(daxa::TaskImageUse<daxa::TaskImageAccess::COLOR_ATTACHMENT, daxa::ImageViewType::REGULAR_2D>{face_views[i]});
+            uses.push_back(daxa::inl_attachment(daxa::TaskImageAccess::COLOR_ATTACHMENT, daxa::ImageViewType::REGULAR_2D, face_views[i]));
         }
         auto pipeline = pass.pipeline;
         auto inputs = pass.inputs;
         auto output_view = pass.buffer.task_resources.output_resource.view();
         task_graph.add_task({
-            .uses = uses,
+            .attachments = uses,
             .task = [this, &pass, task_input_buffer, get_resource_view_slice, pipeline, inputs, output_view, face_views](daxa::TaskInterface const &ti) {
-                auto &cmd_list = ti.get_recorder();
+                auto &cmd_list = ti.recorder;
                 auto input_images = InputImages{};
-                auto size = ti.get_device().info_image(ti.uses[output_view].image()).value().size;
+                auto size = ti.device.info_image(ti.get(output_view).ids[0]).value().size;
                 for (auto const &input : pass.inputs) {
-                    input_images.Channel[input.channel] = ti.uses[get_resource_view_slice(input)].view();
+                    input_images.Channel[input.channel] = ti.get(get_resource_view_slice(input)).view_ids[0];
                     input_images.Channel_sampler[input.channel] = input.sampler;
                 }
                 for (uint32_t i = 0; i < 6; ++i) {
                     ShaderToyCubeTask_record(
                         pipeline,
                         cmd_list,
-                        daxa_device.get_device_address(ti.uses[task_input_buffer].buffer()).value(),
+                        daxa_device.get_device_address(ti.get(task_input_buffer).ids[0]).value(),
                         input_images,
-                        ti.uses[face_views[i]].view(),
+                        ti.get(face_views[i]).view_ids[0],
                         i);
                 }
                 pass.recording_buffer_view = pass.buffer.task_resources.output_resource;
@@ -536,50 +530,52 @@ auto Viewport::record(daxa::TaskGraph &task_graph) -> daxa::TaskImageView {
 
     {
         auto &pass = image_pass;
-        auto uses = std::vector<daxa::GenericTaskResourceUse>{};
-        uses.push_back(daxa::TaskBufferUse<daxa::TaskBufferAccess::FRAGMENT_SHADER_READ>{task_input_buffer});
+        auto uses = std::vector<daxa::TaskAttachmentInfo>{};
+        uses.push_back(daxa::inl_attachment(daxa::TaskBufferAccess::FRAGMENT_SHADER_READ, task_input_buffer));
         for (auto const &input : pass.inputs) {
             if (input.type == ShaderPassInputType::CUBE || input.type == ShaderPassInputType::CUBE_TEXTURE) {
-                uses.push_back(daxa::TaskImageUse<daxa::TaskImageAccess::FRAGMENT_SHADER_SAMPLED, daxa::ImageViewType::CUBE>{get_resource_view_slice(input)});
+                uses.push_back(daxa::inl_attachment(daxa::TaskImageAccess::FRAGMENT_SHADER_SAMPLED, daxa::ImageViewType::CUBE, get_resource_view_slice(input)));
             } else if (input.type == ShaderPassInputType::VOLUME_TEXTURE) {
-                uses.push_back(daxa::TaskImageUse<daxa::TaskImageAccess::FRAGMENT_SHADER_SAMPLED, daxa::ImageViewType::REGULAR_3D>{get_resource_view_slice(input)});
+                uses.push_back(daxa::inl_attachment(daxa::TaskImageAccess::FRAGMENT_SHADER_SAMPLED, daxa::ImageViewType::REGULAR_3D, get_resource_view_slice(input)));
             } else {
-                uses.push_back(daxa::TaskImageUse<daxa::TaskImageAccess::FRAGMENT_SHADER_SAMPLED, daxa::ImageViewType::REGULAR_2D>{get_resource_view_slice(input)});
+                uses.push_back(daxa::inl_attachment(daxa::TaskImageAccess::FRAGMENT_SHADER_SAMPLED, daxa::ImageViewType::REGULAR_2D, get_resource_view_slice(input)));
             }
         }
         auto pipeline = pass.pipeline;
         auto inputs = pass.inputs;
         auto output_view = viewport_render_image;
-        uses.push_back(daxa::TaskImageUse<daxa::TaskImageAccess::COLOR_ATTACHMENT, daxa::ImageViewType::REGULAR_2D>{output_view});
+        uses.push_back(daxa::inl_attachment(daxa::TaskImageAccess::COLOR_ATTACHMENT, daxa::ImageViewType::REGULAR_2D, output_view));
         task_graph.add_task({
-            .uses = uses,
+            .attachments = uses,
             .task = [this, &pass, task_input_buffer, get_resource_view_slice, pipeline, inputs, output_view](daxa::TaskInterface const &ti) {
-                auto &cmd_list = ti.get_recorder();
+                auto &cmd_list = ti.recorder;
                 auto input_images = InputImages{};
-                auto size = ti.get_device().info_image(ti.uses[output_view].image()).value().size;
+                auto size = ti.device.info_image(ti.get(output_view).ids[0]).value().size;
                 for (auto const &input : pass.inputs) {
-                    input_images.Channel[input.channel] = ti.uses[get_resource_view_slice(input)].view();
+                    input_images.Channel[input.channel] = ti.get(get_resource_view_slice(input)).view_ids[0];
                     input_images.Channel_sampler[input.channel] = input.sampler;
                 }
                 ShaderToyTask_record(
                     pipeline,
                     cmd_list,
-                    daxa_device.get_device_address(ti.uses[task_input_buffer].buffer()).value(),
+                    daxa_device.get_device_address(ti.get(task_input_buffer).ids[0]).value(),
                     input_images,
-                    ti.uses[output_view].image(),
+                    ti.get(output_view).ids[0],
                     daxa_u32vec2{size.x, size.y});
             },
             .name = "image task",
         });
         if (pass.needs_mipmap) {
-            for (uint32_t i = 0; i < MAX_MIP - 1; ++i) {
-                task_graph.add_task(MipMapTask{
-                    .uses = {
-                        .lower_mip = output_view.view({.base_mip_level = i}),
-                        .higher_mip = output_view.view({.base_mip_level = i + 1}),
+            for (uint32_t mip = 0; mip < MAX_MIP - 1; ++mip) {
+                task_graph.add_task({
+                    .attachments = {
+                        daxa::inl_attachment(daxa::TaskImageAccess::TRANSFER_READ, daxa::ImageViewType::REGULAR_2D, output_view.view({.base_mip_level = mip})),
+                        daxa::inl_attachment(daxa::TaskImageAccess::TRANSFER_WRITE, daxa::ImageViewType::REGULAR_2D, output_view.view({.base_mip_level = mip + 1})),
                     },
-                    .name = std::string("mip map ") + std::to_string(i),
-                    .mip = i,
+                    .task = [mip](daxa::TaskInterface ti) {
+                        do_blit(ti, ti.get(daxa::TaskImageAttachmentIndex{0}).ids[0], ti.get(daxa::TaskImageAttachmentIndex{1}).ids[0], mip);
+                    },
+                    .name = std::string("mip map ") + std::to_string(mip),
                 });
             }
         }
@@ -735,8 +731,8 @@ auto Viewport::load_texture(std::string path) -> std::pair<daxa::ImageId, size_t
     });
     temp_task_graph.use_persistent_image(task_image);
     temp_task_graph.add_task({
-        .uses = {
-            daxa::TaskImageUse<daxa::TaskImageAccess::TRANSFER_WRITE>{task_image},
+        .attachments = {
+            daxa::inl_attachment(daxa::TaskImageAccess::TRANSFER_WRITE, daxa::ImageViewType::REGULAR_2D, task_image),
         },
         .task = [this, temp_data, size_x, size_y, image_id, pixel_size_bytes](daxa::TaskInterface task_runtime) {
             auto staging_buffer = daxa_device.create_buffer({
@@ -746,7 +742,7 @@ auto Viewport::load_texture(std::string path) -> std::pair<daxa::ImageId, size_t
             });
             auto *buffer_ptr = daxa_device.get_host_address_as<uint8_t>(staging_buffer).value();
             memcpy(buffer_ptr, temp_data, size_x * size_y * pixel_size_bytes);
-            auto &cmd_list = task_runtime.get_recorder();
+            auto &cmd_list = task_runtime.recorder;
             cmd_list.pipeline_barrier({
                 .dst_access = daxa::AccessConsts::TRANSFER_WRITE,
             });
@@ -806,8 +802,8 @@ auto Viewport::load_cube_texture(std::string path) -> std::pair<daxa::ImageId, s
     }
     for (uint32_t i = 0; i < 6; ++i) {
         temp_task_graph.add_task({
-            .uses = {
-                daxa::TaskImageUse<daxa::TaskImageAccess::TRANSFER_WRITE>{task_image.view().view({.base_array_layer = i})},
+            .attachments = {
+                daxa::inl_attachment(daxa::TaskImageAccess::TRANSFER_WRITE, daxa::ImageViewType::REGULAR_2D, task_image),
             },
             .task = [this, &loaded_buffers, size_x, size_y, image_id, i](daxa::TaskInterface task_runtime) {
                 auto staging_buffer = daxa_device.create_buffer({
@@ -817,7 +813,7 @@ auto Viewport::load_cube_texture(std::string path) -> std::pair<daxa::ImageId, s
                 });
                 auto *buffer_ptr = daxa_device.get_host_address_as<uint8_t>(staging_buffer).value();
                 memcpy(buffer_ptr, loaded_buffers[i], size_x * size_y * 4);
-                auto &cmd_list = task_runtime.get_recorder();
+                auto &cmd_list = task_runtime.recorder;
                 cmd_list.pipeline_barrier({
                     .dst_access = daxa::AccessConsts::TRANSFER_WRITE,
                 });
@@ -879,8 +875,8 @@ auto Viewport::load_volume_texture(std::string id) -> std::pair<daxa::ImageId, s
     });
     temp_task_graph.use_persistent_image(task_image);
     temp_task_graph.add_task({
-        .uses = {
-            daxa::TaskImageUse<daxa::TaskImageAccess::TRANSFER_WRITE>{task_image},
+        .attachments = {
+            daxa::inl_attachment(daxa::TaskImageAccess::TRANSFER_WRITE, daxa::ImageViewType::REGULAR_2D, task_image),
         },
         .task = [this, &random_numbers, image_id](daxa::TaskInterface task_runtime) {
             auto staging_buffer = daxa_device.create_buffer({
@@ -890,7 +886,7 @@ auto Viewport::load_volume_texture(std::string id) -> std::pair<daxa::ImageId, s
             });
             auto *buffer_ptr = daxa_device.get_host_address_as<uint8_t>(staging_buffer).value();
             memcpy(buffer_ptr, random_numbers.data(), random_numbers.size());
-            auto &cmd_list = task_runtime.get_recorder();
+            auto &cmd_list = task_runtime.recorder;
             cmd_list.pipeline_barrier({
                 .dst_access = daxa::AccessConsts::TRANSFER_WRITE,
             });
