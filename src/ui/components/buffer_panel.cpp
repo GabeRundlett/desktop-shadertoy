@@ -25,7 +25,6 @@ struct BufferFileEditState {
     std::string name;
     std::filesystem::path path;
     std::atomic_bool modified = false;
-    efsw::WatchID watch_id;
 
     ~BufferFileEditState();
 };
@@ -155,16 +154,19 @@ namespace {
         }
     };
 
-    std::unique_ptr<efsw::FileWatcher> file_watcher = std::make_unique<efsw::FileWatcher>();
+    auto temp_directory = std::filesystem::temp_directory_path();
     std::unique_ptr<UpdateListener> update_listener = std::make_unique<UpdateListener>();
+    std::unique_ptr<efsw::FileWatcher> file_watcher = []() {
+        auto result = std::make_unique<efsw::FileWatcher>();
+        file_watcher->addWatch(temp_directory.string(), update_listener.get());
+        return result;
+    }();
 } // namespace
 
 BufferFileEditState::~BufferFileEditState() {
     // ignore error code.
     auto ec = std::error_code{};
     std::filesystem::remove(path, ec);
-
-    file_watcher->removeWatch(watch_id);
 }
 
 BufferPanel::~BufferPanel() {
@@ -605,7 +607,7 @@ void BufferPanel::process_event(Rml::Event &event, std::string const &value) {
             // create new file and edit state
 
             auto new_temp_filepath = [&name]() {
-                return std::filesystem::temp_directory_path() / (name + "_" + random_string(6) + ".glsl");
+                return temp_directory / (name + "_" + random_string(6) + ".glsl");
             };
 
             auto path = std::filesystem::path{};
@@ -631,14 +633,7 @@ void BufferPanel::process_event(Rml::Event &event, std::string const &value) {
             file << content;
             file.close();
 
-            *edit_state_ptr = new BufferFileEditState{
-                .name = name,
-                .path = path,
-                .watch_id = file_watcher->addWatch(path.parent_path().string(), update_listener.get()),
-            };
-
-            file_watcher->watch();
-
+            *edit_state_ptr = new BufferFileEditState{.name = name, .path = path};
             auto &edit_state = **edit_state_ptr;
         }
         auto &edit_state = **edit_state_ptr;
