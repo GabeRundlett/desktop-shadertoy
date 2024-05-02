@@ -17,22 +17,17 @@
 #include <ui/app_ui.hpp>
 
 #include <fmt/format.h>
-#include <thomasmonkman-filewatch/FileWatch.hpp>
+#include <efsw/efsw.hpp>
 
 void replace_all(std::string &s, std::string const &toReplace, std::string const &replaceWith, bool wordBoundary = false);
 
 struct BufferFileEditState {
     std::string name;
     std::filesystem::path path;
-    filewatch::FileWatch<std::string> file_watch;
     std::atomic_bool modified = false;
+    efsw::WatchID watch_id;
 
-    ~BufferFileEditState() {
-        // delete the file?
-        auto ec = std::error_code{};
-        std::filesystem::remove(path, ec);
-        // ignore error code.
-    }
+    ~BufferFileEditState();
 };
 
 namespace {
@@ -124,36 +119,53 @@ namespace {
         return nullptr;
     }
 
-    void on_file_update(std::string const &path, filewatch::Event const change_type) {
-        if (change_type != filewatch::Event::modified) {
-            // we don't care about anything except modifications
-            return;
+    class UpdateListener : public efsw::FileWatchListener {
+      public:
+        void handleFileAction(efsw::WatchID watchid, const std::string &dir,
+                              const std::string &filename, efsw::Action action,
+                              std::string oldFilename) override {
+
+            if (action != efsw::Actions::Modified) {
+                // we don't care about anything except modifications
+                return;
+            }
+
+            auto name = filename.substr(0, filename.find('_'));
+
+            auto *edit_state_ptr = (BufferFileEditState *)nullptr;
+            if (name == "Common") {
+                edit_state_ptr = AppUi::s_instance->buffer_panel.common_file_edit_state;
+            } else if (name == "Buffer A") {
+                edit_state_ptr = AppUi::s_instance->buffer_panel.buffer00_file_edit_state;
+            } else if (name == "Buffer B") {
+                edit_state_ptr = AppUi::s_instance->buffer_panel.buffer01_file_edit_state;
+            } else if (name == "Buffer C") {
+                edit_state_ptr = AppUi::s_instance->buffer_panel.buffer02_file_edit_state;
+            } else if (name == "Buffer D") {
+                edit_state_ptr = AppUi::s_instance->buffer_panel.buffer03_file_edit_state;
+            } else if (name == "Cube A") {
+                edit_state_ptr = AppUi::s_instance->buffer_panel.cubemap00_file_edit_state;
+            } else if (name == "Image") {
+                edit_state_ptr = AppUi::s_instance->buffer_panel.image_file_edit_state;
+            } else {
+                return;
+            }
+
+            edit_state_ptr->modified = true;
         }
+    };
 
-        auto name = path.substr(0, path.find('_'));
-
-        auto *edit_state_ptr = (BufferFileEditState *)nullptr;
-        if (name == "Common") {
-            edit_state_ptr = AppUi::s_instance->buffer_panel.common_file_edit_state;
-        } else if (name == "Buffer A") {
-            edit_state_ptr = AppUi::s_instance->buffer_panel.buffer00_file_edit_state;
-        } else if (name == "Buffer B") {
-            edit_state_ptr = AppUi::s_instance->buffer_panel.buffer01_file_edit_state;
-        } else if (name == "Buffer C") {
-            edit_state_ptr = AppUi::s_instance->buffer_panel.buffer02_file_edit_state;
-        } else if (name == "Buffer D") {
-            edit_state_ptr = AppUi::s_instance->buffer_panel.buffer03_file_edit_state;
-        } else if (name == "Cube A") {
-            edit_state_ptr = AppUi::s_instance->buffer_panel.cubemap00_file_edit_state;
-        } else if (name == "Image") {
-            edit_state_ptr = AppUi::s_instance->buffer_panel.image_file_edit_state;
-        } else {
-            return;
-        }
-
-        edit_state_ptr->modified = true;
-    }
+    std::unique_ptr<efsw::FileWatcher> file_watcher = std::make_unique<efsw::FileWatcher>();
+    std::unique_ptr<UpdateListener> update_listener = std::make_unique<UpdateListener>();
 } // namespace
+
+BufferFileEditState::~BufferFileEditState() {
+    // ignore error code.
+    auto ec = std::error_code{};
+    std::filesystem::remove(path, ec);
+
+    file_watcher->removeWatch(watch_id);
+}
 
 BufferPanel::~BufferPanel() {
     cleanup();
@@ -622,8 +634,11 @@ void BufferPanel::process_event(Rml::Event &event, std::string const &value) {
             *edit_state_ptr = new BufferFileEditState{
                 .name = name,
                 .path = path,
-                .file_watch = filewatch::FileWatch<std::string>(path.string(), on_file_update),
+                .watch_id = file_watcher->addWatch(path.parent_path().string(), update_listener.get()),
             };
+
+            file_watcher->watch();
+
             auto &edit_state = **edit_state_ptr;
         }
         auto &edit_state = **edit_state_ptr;

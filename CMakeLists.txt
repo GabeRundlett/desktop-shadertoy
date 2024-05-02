@@ -24,6 +24,7 @@ find_package(fmt CONFIG REQUIRED)
 find_package(Boost COMPONENTS asio beast)
 find_package(OpenSSL REQUIRED)
 find_package(unofficial-nativefiledialog CONFIG REQUIRED)
+find_package(efsw CONFIG REQUIRED)
 
 target_link_libraries(${PROJECT_NAME}
 PRIVATE
@@ -34,6 +35,7 @@ PRIVATE
     fmt::fmt
     OpenSSL::SSL
     unofficial::nativefiledialog::nfd
+    efsw::efsw
     ${Boost_LIBRARIES}
 )
 target_include_directories(${PROJECT_NAME} PRIVATE
