@@ -14,9 +14,26 @@
 #include <iostream>
 #include <fstream>
 
-#include <fmt/format.h>
-
 #include <ui/app_ui.hpp>
+
+#include <fmt/format.h>
+#include <thomasmonkman-filewatch/FileWatch.hpp>
+
+void replace_all(std::string &s, std::string const &toReplace, std::string const &replaceWith, bool wordBoundary = false);
+
+struct BufferFileEditState {
+    std::string name;
+    std::filesystem::path path;
+    filewatch::FileWatch<std::string> file_watch;
+    std::atomic_bool modified = false;
+
+    ~BufferFileEditState() {
+        // delete the file?
+        auto ec = std::error_code{};
+        std::filesystem::remove(path, ec);
+        // ignore error code.
+    }
+};
 
 namespace {
     class BufferPanelEventListener : public Rml::EventListener {
@@ -72,7 +89,75 @@ namespace {
         }
     };
     BufferPanelAddOptionsEventListener buffer_panel_add_options_event_listener;
+
+    auto random_string(size_t length) -> std::string {
+        auto randchar = []() -> char {
+            const char charset[] =
+                "0123456789"
+                "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                "abcdefghijklmnopqrstuvwxyz";
+            const size_t max_index = (sizeof(charset) - 1);
+            return charset[rand() % max_index];
+        };
+        std::string str(length, 0);
+        std::generate_n(str.begin(), length, randchar);
+        return str;
+    }
+
+    auto find_pass(std::string const &pass_name) -> nlohmann::json * {
+        auto &renderpasses = AppUi::s_instance->buffer_panel.json["renderpass"];
+        for (auto &renderpass : renderpasses) {
+            auto name = std::string{};
+            if (renderpass["name"] == pass_name) {
+                return &renderpass;
+            }
+        }
+        return nullptr;
+    }
+
+    auto find_input(nlohmann::json &pass_json, int channel_index) -> nlohmann::json * {
+        for (auto &input : pass_json["inputs"]) {
+            if (input["channel"] == channel_index) {
+                return &input;
+            }
+        }
+        return nullptr;
+    }
+
+    void on_file_update(std::string const &path, filewatch::Event const change_type) {
+        if (change_type != filewatch::Event::modified) {
+            // we don't care about anything except modifications
+            return;
+        }
+
+        auto name = path.substr(0, path.find('_'));
+
+        auto *edit_state_ptr = (BufferFileEditState *)nullptr;
+        if (name == "Common") {
+            edit_state_ptr = AppUi::s_instance->buffer_panel.common_file_edit_state;
+        } else if (name == "Buffer A") {
+            edit_state_ptr = AppUi::s_instance->buffer_panel.buffer00_file_edit_state;
+        } else if (name == "Buffer B") {
+            edit_state_ptr = AppUi::s_instance->buffer_panel.buffer01_file_edit_state;
+        } else if (name == "Buffer C") {
+            edit_state_ptr = AppUi::s_instance->buffer_panel.buffer02_file_edit_state;
+        } else if (name == "Buffer D") {
+            edit_state_ptr = AppUi::s_instance->buffer_panel.buffer03_file_edit_state;
+        } else if (name == "Cube A") {
+            edit_state_ptr = AppUi::s_instance->buffer_panel.cubemap00_file_edit_state;
+        } else if (name == "Image") {
+            edit_state_ptr = AppUi::s_instance->buffer_panel.image_file_edit_state;
+        } else {
+            return;
+        }
+
+        edit_state_ptr->modified = true;
+    }
 } // namespace
+
+BufferPanel::~BufferPanel() {
+    cleanup();
+}
 
 void BufferPanel::load(Rml::Context *rml_context, Rml::ElementDocument *document) {
     base_element = document->GetElementById("buffer_panel");
@@ -90,8 +175,6 @@ void BufferPanel::load(Rml::Context *rml_context, Rml::ElementDocument *document
 
     tabs_element = dynamic_cast<Rml::ElementTabSet *>(document->GetElementById("buffer_tabs"));
 }
-
-void replace_all(std::string &s, std::string const &toReplace, std::string const &replaceWith, bool wordBoundary = false);
 
 void BufferPanel::process_event(Rml::Event &event, std::string const &value) {
     if (value == "buffer_panel_ichannel_settings") {
@@ -122,25 +205,6 @@ void BufferPanel::process_event(Rml::Event &event, std::string const &value) {
     auto *tab = tabs->GetChild(tabs_element->GetActiveTab());
     auto *tab_div = tab->GetChild(1);
     auto *tab_div_content = dynamic_cast<Rml::ElementText *>(tab_div->GetChild(0));
-
-    auto find_pass = [this](std::string const &pass_name) -> nlohmann::json * {
-        auto &renderpasses = json["renderpass"];
-        for (auto &renderpass : renderpasses) {
-            auto name = std::string{};
-            if (renderpass["name"] == pass_name) {
-                return &renderpass;
-            }
-        }
-        return nullptr;
-    };
-    auto find_input = [](nlohmann::json &pass_json, int channel_index) -> nlohmann::json * {
-        for (auto &input : pass_json["inputs"]) {
-            if (input["channel"] == channel_index) {
-                return &input;
-            }
-        }
-        return nullptr;
-    };
 
     if (value == "buffer_panel_change_filter") {
         auto *filter_select = dynamic_cast<Rml::ElementFormControlSelect *>(event.GetCurrentElement());
@@ -485,6 +549,159 @@ void BufferPanel::process_event(Rml::Event &event, std::string const &value) {
         event.StopImmediatePropagation();
         reload_json();
     }
+    if (value == "buffer_panel_tab_edit") {
+        auto &renderpasses = json["renderpass"];
+
+        auto new_pass = nlohmann::json{};
+        auto *element = event.GetCurrentElement();
+        auto *parent = element->GetParentNode();
+        auto *content_div = parent->GetChild(1);
+        auto *tab_content = dynamic_cast<Rml::ElementText *>(content_div->GetChild(0));
+
+        auto name = tab_content->GetText();
+
+        auto *edit_state_ptr = (BufferFileEditState **)nullptr;
+        if (name == "Common") {
+            edit_state_ptr = &common_file_edit_state;
+        } else if (name == "Buffer A") {
+            edit_state_ptr = &buffer00_file_edit_state;
+        } else if (name == "Buffer B") {
+            edit_state_ptr = &buffer01_file_edit_state;
+        } else if (name == "Buffer C") {
+            edit_state_ptr = &buffer02_file_edit_state;
+        } else if (name == "Buffer D") {
+            edit_state_ptr = &buffer03_file_edit_state;
+        } else if (name == "Cube A") {
+            edit_state_ptr = &cubemap00_file_edit_state;
+        } else if (name == "Image") {
+            edit_state_ptr = &image_file_edit_state;
+        } else {
+            return;
+        }
+
+        if (*edit_state_ptr != nullptr) {
+            // ensure file still exists
+            auto &edit_state = **edit_state_ptr;
+            if (!std::filesystem::exists(edit_state.path)) {
+                // if it doesn't exist anymore, then we need to destroy our state and recreate it
+                delete *edit_state_ptr;
+                *edit_state_ptr = nullptr;
+            }
+        }
+
+        if (*edit_state_ptr == nullptr) {
+            // create new file and edit state
+
+            auto new_temp_filepath = [&name]() {
+                return std::filesystem::temp_directory_path() / (name + "_" + random_string(6) + ".glsl");
+            };
+
+            auto path = std::filesystem::path{};
+
+            while (true) {
+                path = new_temp_filepath();
+                if (!std::filesystem::exists(path)) {
+                    break;
+                }
+            }
+
+            auto *pass_ptr = find_pass(name);
+            if (pass_ptr == nullptr) {
+                // This again should never happen
+                return;
+            }
+
+            auto &pass = *pass_ptr;
+            auto content = std::string(pass["code"]);
+            replace_all(content, "\\n", "\n");
+
+            auto file = std::ofstream{path};
+            file << content;
+            file.close();
+
+            *edit_state_ptr = new BufferFileEditState{
+                .name = name,
+                .path = path,
+                .file_watch = filewatch::FileWatch<std::string>(path.string(), on_file_update),
+            };
+            auto &edit_state = **edit_state_ptr;
+        }
+        auto &edit_state = **edit_state_ptr;
+
+#if _WIN32
+        std::system(fmt::format("explorer.exe {}", edit_state.path.string()).c_str());
+#else
+        std::system(fmt::format("open {}", edit_state.path.string()).c_str());
+#endif
+    }
+}
+
+void BufferPanel::cleanup() {
+    delete common_file_edit_state;
+    delete buffer00_file_edit_state;
+    delete buffer01_file_edit_state;
+    delete buffer02_file_edit_state;
+    delete buffer03_file_edit_state;
+    delete cubemap00_file_edit_state;
+    delete image_file_edit_state;
+
+    common_file_edit_state = nullptr;
+    buffer00_file_edit_state = nullptr;
+    buffer01_file_edit_state = nullptr;
+    buffer02_file_edit_state = nullptr;
+    buffer03_file_edit_state = nullptr;
+    cubemap00_file_edit_state = nullptr;
+    image_file_edit_state = nullptr;
+}
+
+void BufferPanel::update() {
+    auto code_changed = false;
+
+    auto update_edit_state = [&](BufferFileEditState *edit_state_ptr) {
+        if (edit_state_ptr == nullptr) {
+            return;
+        }
+        if (!edit_state_ptr->modified.load()) {
+            return;
+        }
+
+        // if it was modified, we want to update the shader.
+
+        auto new_content = [&]() {
+            auto file = std::ifstream(edit_state_ptr->path);
+            std::stringstream buffer;
+            buffer << file.rdbuf();
+            return buffer.str();
+        }();
+
+        if (new_content.empty()) {
+            return;
+        }
+
+        auto *pass_ptr = find_pass(edit_state_ptr->name);
+        if (pass_ptr == nullptr) {
+            // Shouldn't ever happen
+            return;
+        }
+        auto &pass = *pass_ptr;
+        auto old_content = std::string(pass["code"]);
+        if (new_content != old_content) {
+            pass["code"] = new_content;
+            code_changed = true;
+        }
+    };
+
+    update_edit_state(common_file_edit_state);
+    update_edit_state(buffer00_file_edit_state);
+    update_edit_state(buffer01_file_edit_state);
+    update_edit_state(buffer02_file_edit_state);
+    update_edit_state(buffer03_file_edit_state);
+    update_edit_state(cubemap00_file_edit_state);
+    update_edit_state(image_file_edit_state);
+
+    if (code_changed) {
+        AppUi::s_instance->buffer_panel.reload_json();
+    }
 }
 
 void BufferPanel::load_shadertoy_json(nlohmann::json const &temp_json) {
@@ -500,6 +717,7 @@ void BufferPanel::load_shadertoy_json(nlohmann::json const &temp_json) {
     } else {
         json = temp_json;
     }
+    cleanup();
     reload_json();
 }
 void BufferPanel::reload_json() {

@@ -8,6 +8,7 @@
     "nlohmann-json",
     {
       "name": "daxa",
+      "default-features": false,
       "features": [
         "utils-mem",
         "utils-pipeline-manager-glslang",
@@ -20,9 +21,10 @@
     "openssl",
     "boost-asio",
     "boost-beast",
-    "nativefiledialog"
+    "nativefiledialog",
+    "thomasmonkman-filewatch"
   ],
-  "builtin-baseline": "78ba9711d30c64a6b40462c72f356c681e2255f3",
+  "builtin-baseline": "b346ee32f13f3bf2ef19ac02f982f6938f7a84ea",
   "vcpkg-configuration": {
     "overlay-ports": [
       "deps/Daxa"

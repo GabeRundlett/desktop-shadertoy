@@ -241,8 +241,6 @@ Viewport::~Viewport() {
 }
 
 void Viewport::update() {
-    pipeline_manager.reload_all();
-
     using namespace std::chrono_literals;
     auto now = Clock::now();
     gpu_input.Time = std::chrono::duration<daxa_f32>(now - start).count();

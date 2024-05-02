@@ -325,6 +325,7 @@ void AppUi::update(float time, float fps) {
 
     update_bottom_bar(time, fps);
     update_download_bar();
+    buffer_panel.update();
 }
 
 void AppUi::render(daxa::CommandRecorder &recorder, daxa::ImageId target_image) {
