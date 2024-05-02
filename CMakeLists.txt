@@ -26,6 +26,10 @@ find_package(OpenSSL REQUIRED)
 find_package(unofficial-nativefiledialog CONFIG REQUIRED)
 find_package(efsw CONFIG REQUIRED)
 
+find_package(glslang CONFIG REQUIRED)
+find_package(VulkanMemoryAllocator CONFIG REQUIRED)
+find_package(Vulkan REQUIRED)
+
 target_link_libraries(${PROJECT_NAME}
 PRIVATE
     daxa::daxa

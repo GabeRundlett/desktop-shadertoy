@@ -150,6 +150,9 @@ namespace {
                 return;
             }
 
+            if (edit_state_ptr == nullptr) {
+                return;
+            }
             edit_state_ptr->modified = true;
         }
     };
@@ -158,7 +161,8 @@ namespace {
     std::unique_ptr<UpdateListener> update_listener = std::make_unique<UpdateListener>();
     std::unique_ptr<efsw::FileWatcher> file_watcher = []() {
         auto result = std::make_unique<efsw::FileWatcher>();
-        file_watcher->addWatch(temp_directory.string(), update_listener.get());
+        result->addWatch(temp_directory.string(), update_listener.get());
+        result->watch();
         return result;
     }();
 } // namespace
