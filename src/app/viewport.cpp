@@ -157,11 +157,31 @@ void shader_preprocess(std::string &contents, std::filesystem::path const &path)
     std::string line = {};
     std::stringstream file_ss{contents};
     std::stringstream result_ss = {};
+    bool is_standard_code =
+        path.filename() == "daxa.glsl" ||
+        path.filename() == "daxa.inl" ||
+        path.filename() == "task_graph.inl" ||
+        path.filename() == "viewport.glsl" ||
+        path.filename() == "viewport.inl";
     while (std::getline(file_ss, line)) {
         replace_all(line, "sampler2D", "CombinedImageSampler2D", true);
         replace_all(line, "sampler3D", "CombinedImageSampler3D", true);
         replace_all(line, "samplerCube", "CombinedImageSamplerCube", true);
-        replace_all(line, "textureCube", "TextureCube", true);
+        if (!is_standard_code) {
+            // These are functions/names that may be used in shadertoy code, however
+            // they're reserved names or functions in this dialect of Vulkan GLSL.
+            // Here, we'll replace them with some working names
+            replace_all(line, "textureCube", "ds_TextureCube", true);
+            replace_all(line, "packUnorm2x16", "ds_PackUnorm2x16", true);
+            replace_all(line, "packSnorm2x16", "ds_PackSnorm2x16", true);
+            replace_all(line, "packUnorm4x8", "ds_PackUnorm4x8", true);
+            replace_all(line, "packSnorm4x8", "ds_PackSnorm4x8", true);
+            replace_all(line, "unpackUnorm2x16", "ds_UnpackUnorm2x16", true);
+            replace_all(line, "unpackSnorm2x16", "ds_UnpackSnorm2x16", true);
+            replace_all(line, "unpackUnorm4x8", "ds_UnpackUnorm4x8", true);
+            replace_all(line, "unpackSnorm4x8", "ds_UnpackSnorm4x8", true);
+            replace_all(line, "buffer", "ds_Buffer", true);
+        }
         result_ss << line << "\n";
     }
     contents = result_ss.str();
