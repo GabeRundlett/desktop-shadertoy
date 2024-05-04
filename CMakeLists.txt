@@ -77,4 +77,3 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
 endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/cmake/packaging.cmake")
-include("${CMAKE_CURRENT_LIST_DIR}/cmake/appimage.cmake")

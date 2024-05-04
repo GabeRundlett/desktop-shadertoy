@@ -33,3 +33,8 @@ set(CPACK_GENERATOR ZIP)
 
 include(InstallRequiredSystemLibraries)
 include(CPack)
+
+set(ENABLE_BUILD_APPIMAGE OFF CACHE BOOL "Enable building appimage package")
+if(UNIX AND NOT APPLE AND ${ENABLE_BUILD_APPIMAGE})
+    include("${CMAKE_SOURCE_DIR}/cmake/appimage.cmake")
+endif()
