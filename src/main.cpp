@@ -1,4 +1,5 @@
 #include <app/viewport.hpp>
+#include <app/resources.hpp>
 
 #include <cstdint>
 #include <daxa/daxa.hpp>
@@ -98,7 +99,7 @@ ShaderApp::ShaderApp()
         download_shadertoy(rml_input);
     };
 
-    ui.buffer_panel.load_shadertoy_json(nlohmann::json::parse(std::ifstream("default-shader.json")));
+    ui.buffer_panel.load_shadertoy_json(nlohmann::json::parse(std::ifstream(resource_dir + "default-shader.json")));
 }
 
 ShaderApp::~ShaderApp() {

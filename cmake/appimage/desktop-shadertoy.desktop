@@ -1,0 +1,8 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Terminal=false
+Exec=desktop-shadertoy
+Name=Desktop Shadertoy
+Icon=desktop-shadertoy
+Categories=Graphics;

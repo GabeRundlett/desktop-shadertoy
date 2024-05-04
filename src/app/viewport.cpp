@@ -1,4 +1,5 @@
 #include <app/viewport.hpp>
+#include <app/resources.hpp>
 
 #include <GLFW/glfw3.h>
 #include <daxa/c/core.h>
@@ -1177,9 +1178,22 @@ void Viewport::load_shadertoy_json(nlohmann::json json) {
         }
         extra_defines.push_back({.name = "_DESKTOP_SHADERTOY_USER_PASS" + std::to_string(pass_i), .value = "1"});
 
+        const auto shader_include_dir = resource_dir + "src/";
         auto compile_result = pipeline_manager.add_raster_pipeline({
-            .vertex_shader_info = daxa::ShaderCompileInfo{.source = daxa::ShaderFile{"app/viewport.glsl"}, .compile_options{.defines = extra_defines}},
-            .fragment_shader_info = daxa::ShaderCompileInfo{.source = daxa::ShaderFile{"app/viewport.glsl"}, .compile_options{.defines = extra_defines}},
+            .vertex_shader_info = daxa::ShaderCompileInfo{
+                .source = daxa::ShaderFile{ shader_include_dir + "app/viewport.glsl" },
+                .compile_options{
+                    .root_paths = { shader_include_dir },
+                    .defines = extra_defines
+                }
+            },
+            .fragment_shader_info = daxa::ShaderCompileInfo{
+                .source = daxa::ShaderFile{ shader_include_dir + "app/viewport.glsl" },
+                .compile_options{
+                    .root_paths = { shader_include_dir },
+                    .defines = extra_defines
+                }
+            },
             .color_attachments = {{
                 .format = pass_format,
             }},
