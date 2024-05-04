@@ -231,25 +231,29 @@ namespace {
             case Rml::Input::KI_0:
                 if ((key_modifier & Rml::Input::KM_CTRL) != 0) {
                     context->SetDensityIndependentPixelRatio(native_dp_ratio);
+                    AppUi::s_instance->app_window.on_resize();
                 }
                 break;
             case Rml::Input::KI_1:
                 if ((key_modifier & Rml::Input::KM_CTRL) != 0) {
                     context->SetDensityIndependentPixelRatio(1.f);
+                    AppUi::s_instance->app_window.on_resize();
                 }
                 break;
             case Rml::Input::KI_OEM_MINUS: [[fallthrough]];
             case Rml::Input::KI_SUBTRACT:
-                if ((key_modifier & Rml::Input::KM_CTRL) != 0) {
+                if ((key_modifier & Rml::Input::KM_CTRL) != 0 && glfw_action == GLFW_PRESS) {
                     const float new_dp_ratio = Rml::Math::Max(context->GetDensityIndependentPixelRatio() / 1.2f, 0.5f);
                     context->SetDensityIndependentPixelRatio(new_dp_ratio);
+                    AppUi::s_instance->app_window.on_resize();
                 }
                 break;
             case Rml::Input::KI_OEM_PLUS: [[fallthrough]];
             case Rml::Input::KI_ADD:
-                if ((key_modifier & Rml::Input::KM_CTRL) != 0) {
+                if ((key_modifier & Rml::Input::KM_CTRL) != 0 && glfw_action == GLFW_PRESS) {
                     const float new_dp_ratio = Rml::Math::Min(context->GetDensityIndependentPixelRatio() * 1.2f, 2.5f);
                     context->SetDensityIndependentPixelRatio(new_dp_ratio);
+                    AppUi::s_instance->app_window.on_resize();
                 }
                 break;
             default:

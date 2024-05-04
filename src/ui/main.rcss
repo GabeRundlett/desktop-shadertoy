@@ -1,6 +1,6 @@
 body {
     font-family: LatoLatin;
-    font-size: 18px;
+    font-size: 18dp;
     width: 100%;
     height: 100%;
 }
@@ -21,41 +21,41 @@ body {
     color: black;
     font: bold;
     width: 100%;
-    height: 22px;
-    padding-top: 1px;
-    padding-bottom: 1px;
+    height: 22dp;
+    padding-top: 1dp;
+    padding-bottom: 1dp;
     background-color: white;
 }
 
 .bottom_bar_icon_button:hover {
-    top: 0px;
-    margin-left: -1px;
-    margin-right: -1px;
-    border: 1px black;
+    top: 0dp;
+    margin-left: -1dp;
+    margin-right: -1dp;
+    border: 1dp black;
 }
 
 .bottom_bar_icon_button {
     position: absolute;
-    top: 1px;
+    top: 1dp;
 }
 
 #reset {
-    left: 16px;
+    left: 16dp;
     image-color: black;
 }
 
 #pause {
-    left: 44px;
+    left: 44dp;
     image-color: black;
 }
 
 #fullscreen {
-    right: 16px;
+    right: 16dp;
     image-color: black;
 }
 
 #save {
-    right: 80px;
+    right: 80dp;
     image-color: black;
 }
 
@@ -63,23 +63,23 @@ body {
 #fps,
 #resolution {
     position: absolute;
-    top: 3px;
+    top: 3dp;
 }
 
 #time {
-    left: 88px;
+    left: 88dp;
 }
 
 #fps {
-    left: 150px;
+    left: 150dp;
 }
 
 #resolution {
-    left: 250px;
+    left: 250dp;
 }
 
 #download {
-    right: 48px;
+    right: 48dp;
     image-color: black;
 }
 
@@ -90,10 +90,10 @@ div {
 #download_bar {
     z-index: 2;
     position: absolute;
-    padding: 10px;
-    padding-bottom: 2px;
-    border: 2px rgb(221, 221, 221);
-    border-radius: 3px;
+    padding: 10dp;
+    padding-bottom: 2dp;
+    border: 2dp rgb(221, 221, 221);
+    border-radius: 3dp;
     background-color: rgb(238, 238, 238);
 
     width: 60%;
@@ -111,7 +111,7 @@ div {
 #download_input_placeholder {
     color: gray;
     position: absolute;
-    top: 10px;
+    top: 10dp;
 }
 
 #download_input {

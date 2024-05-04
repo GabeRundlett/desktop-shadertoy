@@ -377,6 +377,8 @@ auto RmlGLFW::ConvertKey(int glfw_key) -> Rml::Input::KeyIdentifier {
     case GLFW_KEY_ESCAPE:        return Rml::Input::KI_ESCAPE;
 
     case GLFW_KEY_SPACE:         return Rml::Input::KI_SPACE;
+    case GLFW_KEY_MINUS:         return Rml::Input::KI_OEM_MINUS;
+    case GLFW_KEY_EQUAL:         return Rml::Input::KI_OEM_PLUS;
     case GLFW_KEY_PAGE_UP:       return Rml::Input::KI_PRIOR;
     case GLFW_KEY_PAGE_DOWN:     return Rml::Input::KI_NEXT;
     case GLFW_KEY_END:           return Rml::Input::KI_END;

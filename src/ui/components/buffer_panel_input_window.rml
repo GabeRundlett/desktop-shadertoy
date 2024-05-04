@@ -18,7 +18,7 @@
                     <panel id="bpiw_misc" class="bpiw_panel">
                         <div class="bpiw_panel_container">
                             <datagrid>
-                                <col width="220px">
+                                <col width="220dp">
 
                                 <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
                                     <img class="bpiw_option_preview" src="../../media/icons/keyboard.png" />
@@ -48,7 +48,7 @@
                                 </div>
 
                                 </col>
-                                <col width="220px">
+                                <col width="220dp">
 
                                 <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
                                     <img class="bpiw_option_preview" src="../../media/icons/buffer00.png" />
@@ -78,7 +78,7 @@
                                 </div>
 
                                 </col>
-                                <col width="220px">
+                                <col width="220dp">
 
                                 <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
                                     <img class="bpiw_option_preview" src="../../media/icons/buffer01.png" />
@@ -116,7 +116,7 @@
                     <panel id="bpiw_textures" class="bpiw_panel">
                         <div class="bpiw_panel_container">
                             <datagrid>
-                                <col width="220px">
+                                <col width="220dp">
 
                                 <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
                                     <img class="bpiw_option_preview"
@@ -232,7 +232,7 @@
                                 </div>
 
                                 </col>
-                                <col width="220px">
+                                <col width="220dp">
 
                                 <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
                                     <img class="bpiw_option_preview"
@@ -336,7 +336,7 @@
                                 </div>
 
                                 </col>
-                                <col width="220px">
+                                <col width="220dp">
 
                                 <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
                                     <img class="bpiw_option_preview"
@@ -448,7 +448,7 @@
                     <panel id="bpiw_cubemaps" class="bpiw_panel">
                         <div class="bpiw_panel_container">
                             <datagrid>
-                                <col width="220px">
+                                <col width="220dp">
 
                                 <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
                                     <img class="bpiw_option_preview"
@@ -480,7 +480,7 @@
                                 </div>
 
                                 </col>
-                                <col width="220px">
+                                <col width="220dp">
 
                                 <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
                                     <img class="bpiw_option_preview"
@@ -512,7 +512,7 @@
                                 </div>
 
                                 </col>
-                                <col width="220px">
+                                <col width="220dp">
 
                                 <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
                                     <img class="bpiw_option_preview"
