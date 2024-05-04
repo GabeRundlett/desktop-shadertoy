@@ -1,4 +1,6 @@
-#include "app/core.inl"
+#include <app/core.inl>
+#include <app/resources.hpp>
+
 #include <GLFW/glfw3.h>
 #include <RmlUi/Core/Element.h>
 #include <RmlUi/Core/ElementDocument.h>
@@ -154,18 +156,20 @@ namespace {
     void load_page(Rml::Context *context, Rml::String const &src_url) {
         auto *document = context->LoadDocument(src_url);
         document->Show();
+    }
+    void load_main_page(Rml::Context *context, Rml::String const &src_url) {
+        auto *document = context->LoadDocument(src_url);
+        document->Show();
 
-        if (src_url == "src/ui/main.rml") {
-            load_bottom_bar(document);
-            load_download_bar(document);
-            load_viewport(document);
+        load_bottom_bar(document);
+        load_download_bar(document);
+        load_viewport(document);
 
-            AppUi::s_instance->buffer_panel.load(context, document);
-        }
+        AppUi::s_instance->buffer_panel.load(context, document);
     }
 
     void load_fonts() {
-        const Rml::String directory = "media/fonts/";
+        const Rml::String directory = resource_dir + "media/fonts/";
 
         struct FontFace {
             const char *filename;
@@ -312,7 +316,7 @@ AppUi::AppUi(daxa::Device device)
         constructor.Bind("download_input", &download_input);
     }
 
-    load_page(rml_context, "src/ui/main.rml");
+    load_main_page(rml_context, resource_dir + "src/ui/main.rml");
 }
 
 AppUi::~AppUi() {
