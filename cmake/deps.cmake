@@ -18,5 +18,8 @@ else()
 endif()
 
 if(DESKTOP_SHADERTOY_USE_VCPKG)
+    if(LINUX)
+        list(APPEND VCPKG_OVERLAY_PORTS "${CMAKE_CURRENT_LIST_DIR}/overlay-ports/openssl")
+    endif()
     include("${CMAKE_CURRENT_LIST_DIR}/vcpkg.cmake")
 endif()
