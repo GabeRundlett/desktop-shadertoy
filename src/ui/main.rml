@@ -6,6 +6,7 @@
         <link type="text/template" href="components/buffer_panel.rml" />
         <link type="text/template" href="components/buffer_tab.rml" />
         <link type="text/template" href="components/buffer_panel_input_window.rml" />
+        <link type="text/template" href="components/settings_window.rml" />
     </head>
 
     <body class="window" data-model="ui_data">
@@ -16,6 +17,7 @@
                     <input id="download_input" type="text" data-value="download_input" onkeydown="download_input_key" />
                 </div>
                 <template src="buffer_panel_input_window"> </template>
+                <template src="settings_window"> </template>
             </div>
             <div id="bottom_bar">
                 <button onclick="bottom_bar_reset">
@@ -35,6 +37,9 @@
                 </button>
                 <button onclick="bottom_bar_save">
                     <img class="bottom_bar_icon_button" id="save" src="../../media/icons/save.png"></img>
+                </button>
+                <button onclick="settings_window_open">
+                    <img class="bottom_bar_icon_button" id="settings" src="../../media/icons/settings.png"></img>
                 </button>
             </div>
             <div id="buffer_panel">

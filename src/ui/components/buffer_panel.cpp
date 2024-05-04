@@ -298,40 +298,25 @@ void BufferPanel::process_event(Rml::Event &event, std::string const &value) {
                     new_input["type"] = "keyboard";
                     new_input["sampler"]["filter"] = "nearest";
                 } else if (img_path == "../../media/icons/buffer00.png") {
-                    auto *input_pass = find_pass("Buffer A");
-                    if (input_pass != nullptr) {
-                        new_input["id"] = (*input_pass)["outputs"][0]["id"];
-                        new_input["filepath"] = "/media/previz/buffer00.png";
-                        new_input["type"] = "buffer";
-                    }
+                    new_input["id"] = "4dXGR8";
+                    new_input["filepath"] = "/media/previz/buffer00.png";
+                    new_input["type"] = "buffer";
                 } else if (img_path == "../../media/icons/buffer01.png") {
-                    auto *input_pass = find_pass("Buffer B");
-                    if (input_pass != nullptr) {
-                        new_input["id"] = (*input_pass)["outputs"][0]["id"];
-                        new_input["filepath"] = "/media/previz/buffer01.png";
-                        new_input["type"] = "buffer";
-                    }
+                    new_input["id"] = "XsXGR8";
+                    new_input["filepath"] = "/media/previz/buffer01.png";
+                    new_input["type"] = "buffer";
                 } else if (img_path == "../../media/icons/buffer02.png") {
-                    auto *input_pass = find_pass("Buffer C");
-                    if (input_pass != nullptr) {
-                        new_input["id"] = (*input_pass)["outputs"][0]["id"];
-                        new_input["filepath"] = "/media/previz/buffer02.png";
-                        new_input["type"] = "buffer";
-                    }
+                    new_input["id"] = "4sXGR8";
+                    new_input["filepath"] = "/media/previz/buffer02.png";
+                    new_input["type"] = "buffer";
                 } else if (img_path == "../../media/icons/buffer03.png") {
-                    auto *input_pass = find_pass("Buffer D");
-                    if (input_pass != nullptr) {
-                        new_input["id"] = (*input_pass)["outputs"][0]["id"];
-                        new_input["filepath"] = "/media/previz/buffer03.png";
-                        new_input["type"] = "buffer";
-                    }
+                    new_input["id"] = "XdfGR8";
+                    new_input["filepath"] = "/media/previz/buffer03.png";
+                    new_input["type"] = "buffer";
                 } else if (img_path == "../../media/icons/cubemap00.png") {
-                    auto *input_pass = find_pass("Cube A");
-                    if (input_pass != nullptr) {
-                        new_input["id"] = (*input_pass)["outputs"][0]["id"];
-                        new_input["filepath"] = "/media/previz/cubemap00.png";
-                        new_input["type"] = "cubemap";
-                    }
+                    new_input["id"] = "4dX3Rr";
+                    new_input["filepath"] = "/media/previz/cubemap00.png";
+                    new_input["type"] = "cubemap";
                 }
             } break;
             case 1: {
@@ -343,6 +328,17 @@ void BufferPanel::process_event(Rml::Event &event, std::string const &value) {
             case 2: {
                 new_input["filepath"] = img_path;
                 new_input["type"] = "cubemap";
+            } break;
+            case 3: {
+                if (img_path == "../../media/icons/volume_gray.png") {
+                    new_input["id"] = "4sfGRr";
+                    new_input["filepath"] = "/media/a/27012b4eadd0c3ce12498b867058e4f717ce79e10a99568cca461682d84a4b04.bin";
+                    new_input["type"] = "volume";
+                } else if (img_path == "../../media/icons/buffer00.png") {
+                    new_input["id"] = "XdX3Rr";
+                    new_input["filepath"] = "/media/a/aea6b99da1d53055107966b59ac5444fc8bc7b3ce2d0bbb6a4a3cbae1d97f3aa.bin";
+                    new_input["type"] = "volume";
+                }
             } break;
             }
 

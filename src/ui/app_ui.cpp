@@ -71,6 +71,47 @@ namespace {
 } // namespace
 
 namespace {
+    Rml::Element *settings_window_element{};
+
+    class SettingsWindowEventListener : public Rml::EventListener {
+      public:
+        void ProcessEvent(Rml::Event &event) override {
+            if (event.GetId() == Rml::EventId::Blur) {
+                settings_window_element->SetProperty("display", "none");
+            }
+        }
+    };
+    SettingsWindowEventListener settings_window_event_listener;
+
+    void load_settings_window(Rml::ElementDocument *document) {
+        settings_window_element = document->GetElementById("settings_window");
+        settings_window_element->AddEventListener(Rml::EventId::Blur, &settings_window_event_listener);
+    }
+
+    void settings_window_process_event(Rml::Event &event, Rml::String const &value) {
+        if (value == "settings_window_open") {
+            auto const display_prop = settings_window_element->GetProperty("display")->ToString();
+            if (display_prop == "block") {
+                settings_window_element->SetProperty("display", "none");
+                settings_window_element->Blur();
+            } else {
+                settings_window_element->SetProperty("display", "block");
+                settings_window_element->Focus();
+            }
+        }
+        if (value == "settings_window_close") {
+            settings_window_element->SetProperty("display", "none");
+            settings_window_element->Blur();
+        }
+        if (value == "settings_window_vsync") {
+            auto *settings_window_vsync = settings_window_element->GetElementById("settings_window_vsync");
+            auto enabled = settings_window_vsync->GetAttribute("checked") == nullptr;
+            AppUi::s_instance->app_window.set_vsync(enabled);
+        }
+    }
+} // namespace
+
+namespace {
     Rml::Element *time_element{};
     Rml::Element *fps_element{};
     Rml::Element *resolution_element{};
@@ -164,6 +205,7 @@ namespace {
         load_bottom_bar(document);
         load_download_bar(document);
         load_viewport(document);
+        load_settings_window(document);
 
         AppUi::s_instance->buffer_panel.load(context, document);
     }
@@ -217,7 +259,7 @@ namespace {
                 }
                 break;
             case Rml::Input::KI_S:
-                if ((key_modifier & Rml::Input::KM_CTRL) != 0 && glfw_action == GLFW_PRESS) {
+                if ((key_modifier & ~(Rml::Input::KM_CTRL | Rml::Input::KM_SHIFT)) == 0 && (key_modifier & Rml::Input::KM_CTRL) != 0 && glfw_action == GLFW_PRESS) {
                     AppUi::s_instance->save_json((key_modifier & Rml::Input::KM_SHIFT) != 0);
                 }
                 break;
@@ -280,6 +322,8 @@ namespace {
                 download_bar_process_event(event, value);
             } else if (value.find("buffer_panel_") != std::string::npos) {
                 AppUi::s_instance->buffer_panel.process_event(event, value);
+            } else if (value.find("settings_window_") != std::string::npos) {
+                settings_window_process_event(event, value);
             }
         }
 

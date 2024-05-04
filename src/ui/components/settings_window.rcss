@@ -1,0 +1,46 @@
+#settings_window {
+    z-index: 2;
+    position: absolute;
+    color: #000000;
+    background-color: rgb(238, 238, 238);
+    border: 1dp;
+    border-color: #747474;
+    padding-bottom: 8dp;
+
+    top: 5%;
+    left: 5%;
+    display: none;
+    width: 400dp;
+}
+
+.settings_window_button {
+    position: absolute;
+    top: 4dp;
+    image-color: black;
+}
+
+.settings_window_button:hover {
+    top: 3dp;
+    margin-left: -1dp;
+    margin-right: -1dp;
+    border: 1dp black;
+}
+
+#settings_window_close {
+    right: 4dp;
+}
+
+#settings_window_header {
+    padding: 4dp;
+    background-color: rgb(255, 255, 255);
+    height: 16dp;
+}
+
+#settings_window_content {
+    padding-top: 5dp;
+}
+
+#settings_window input.checkbox,
+label {
+    margin: 4dp;
+}
