@@ -46,7 +46,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     "${CMAKE_CURRENT_LIST_DIR}/src"
 )
 
-if(LINUX)
+if(UNIX AND NOT APPLE)
     # On Linux, we use the system OpenSSL, so it needs to be linked like so:
     target_link_libraries(${PROJECT_NAME}
     PRIVATE
