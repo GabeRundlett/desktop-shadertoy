@@ -77,3 +77,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
 endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/cmake/packaging.cmake")
+
+set(ENABLE_BUILD_APPIMAGE OFF CACHE BOOL "Enable building appimage package")
+if(UNIX AND NOT APPLE AND ${ENABLE_BUILD_APPIMAGE})
+    include("${CMAKE_CURRENT_LIST_DIR}/cmake/appimage.cmake")
+endif ()
