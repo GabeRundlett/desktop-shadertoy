@@ -1,0 +1,23 @@
+<template name="settings_window" content="content">
+
+    <head>
+        <link type="text/rcss" href="settings_window.rcss" />
+    </head>
+
+    <body class="settings_window">
+        <div id="settings_window">
+            <div id="settings_window_header">
+                Settings
+                <button onclick="settings_window_close">
+                    <img class="settings_window_button" id="settings_window_close"
+                        src="../../media/icons/close.png"></img>
+                </button>
+            </div>
+            <div id="settings_window_content">
+                <label><input id="settings_window_vsync" type="checkbox" name="vsync" value="true" checked="true"
+                        onclick="settings_window_vsync" />Vsync</label>
+            </div>
+        </div>
+    </body>
+
+</template>

@@ -9,6 +9,7 @@
 #include <nlohmann/json.hpp>
 
 enum struct ShaderPassInputType {
+    NONE,
     BUFFER,
     CUBE,
     KEYBOARD,

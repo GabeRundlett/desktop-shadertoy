@@ -449,7 +449,9 @@ auto Viewport::record(daxa::TaskGraph &task_graph) -> daxa::TaskImageView {
         auto uses = std::vector<daxa::TaskAttachmentInfo>{};
         uses.push_back(daxa::inl_attachment(daxa::TaskBufferAccess::FRAGMENT_SHADER_READ, task_input_buffer));
         for (auto const &input : pass.inputs) {
-            if (input.type == ShaderPassInputType::CUBE || input.type == ShaderPassInputType::CUBE_TEXTURE) {
+            if (input.type == ShaderPassInputType::NONE) {
+                continue;
+            } else if (input.type == ShaderPassInputType::CUBE || input.type == ShaderPassInputType::CUBE_TEXTURE) {
                 uses.push_back(daxa::inl_attachment(daxa::TaskImageAccess::FRAGMENT_SHADER_SAMPLED, daxa::ImageViewType::CUBE, get_resource_view_slice(input)));
             } else if (input.type == ShaderPassInputType::VOLUME_TEXTURE) {
                 uses.push_back(daxa::inl_attachment(daxa::TaskImageAccess::FRAGMENT_SHADER_SAMPLED, daxa::ImageViewType::REGULAR_3D, get_resource_view_slice(input)));
@@ -468,6 +470,9 @@ auto Viewport::record(daxa::TaskGraph &task_graph) -> daxa::TaskImageView {
                 auto input_images = InputImages{};
                 auto size = ti.device.info_image(ti.get(output_view).ids[0]).value().size;
                 for (auto const &input : pass.inputs) {
+                    if (input.type == ShaderPassInputType::NONE) {
+                        continue;
+                    }
                     input_images.Channel[input.channel] = ti.get(get_resource_view_slice(input)).view_ids[0];
                     input_images.Channel_sampler[input.channel] = input.sampler;
                 }
@@ -504,7 +509,9 @@ auto Viewport::record(daxa::TaskGraph &task_graph) -> daxa::TaskImageView {
         auto uses = std::vector<daxa::TaskAttachmentInfo>{};
         uses.push_back(daxa::inl_attachment(daxa::TaskBufferAccess::FRAGMENT_SHADER_READ, task_input_buffer));
         for (auto const &input : pass.inputs) {
-            if (input.type == ShaderPassInputType::CUBE || input.type == ShaderPassInputType::CUBE_TEXTURE) {
+            if (input.type == ShaderPassInputType::NONE) {
+                continue;
+            } else if (input.type == ShaderPassInputType::CUBE || input.type == ShaderPassInputType::CUBE_TEXTURE) {
                 uses.push_back(daxa::inl_attachment(daxa::TaskImageAccess::FRAGMENT_SHADER_SAMPLED, daxa::ImageViewType::CUBE, get_resource_view_slice(input)));
             } else if (input.type == ShaderPassInputType::VOLUME_TEXTURE) {
                 uses.push_back(daxa::inl_attachment(daxa::TaskImageAccess::FRAGMENT_SHADER_SAMPLED, daxa::ImageViewType::REGULAR_3D, get_resource_view_slice(input)));
@@ -527,6 +534,9 @@ auto Viewport::record(daxa::TaskGraph &task_graph) -> daxa::TaskImageView {
                 auto input_images = InputImages{};
                 auto size = ti.device.info_image(ti.get(output_view).ids[0]).value().size;
                 for (auto const &input : pass.inputs) {
+                    if (input.type == ShaderPassInputType::NONE) {
+                        continue;
+                    }
                     input_images.Channel[input.channel] = ti.get(get_resource_view_slice(input)).view_ids[0];
                     input_images.Channel_sampler[input.channel] = input.sampler;
                 }
@@ -551,7 +561,9 @@ auto Viewport::record(daxa::TaskGraph &task_graph) -> daxa::TaskImageView {
         auto uses = std::vector<daxa::TaskAttachmentInfo>{};
         uses.push_back(daxa::inl_attachment(daxa::TaskBufferAccess::FRAGMENT_SHADER_READ, task_input_buffer));
         for (auto const &input : pass.inputs) {
-            if (input.type == ShaderPassInputType::CUBE || input.type == ShaderPassInputType::CUBE_TEXTURE) {
+            if (input.type == ShaderPassInputType::NONE) {
+                continue;
+            } else if (input.type == ShaderPassInputType::CUBE || input.type == ShaderPassInputType::CUBE_TEXTURE) {
                 uses.push_back(daxa::inl_attachment(daxa::TaskImageAccess::FRAGMENT_SHADER_SAMPLED, daxa::ImageViewType::CUBE, get_resource_view_slice(input)));
             } else if (input.type == ShaderPassInputType::VOLUME_TEXTURE) {
                 uses.push_back(daxa::inl_attachment(daxa::TaskImageAccess::FRAGMENT_SHADER_SAMPLED, daxa::ImageViewType::REGULAR_3D, get_resource_view_slice(input)));
@@ -570,6 +582,9 @@ auto Viewport::record(daxa::TaskGraph &task_graph) -> daxa::TaskImageView {
                 auto input_images = InputImages{};
                 auto size = ti.device.info_image(ti.get(output_view).ids[0]).value().size;
                 for (auto const &input : pass.inputs) {
+                    if (input.type == ShaderPassInputType::NONE) {
+                        continue;
+                    }
                     input_images.Channel[input.channel] = ti.get(get_resource_view_slice(input)).view_ids[0];
                     input_images.Channel_sampler[input.channel] = input.sampler;
                 }
@@ -1120,10 +1135,14 @@ void Viewport::load_shadertoy_json(nlohmann::json json) {
             if (type == "cubemap" && !id_map.contains(id)) {
                 load_texture_type(ShaderPassInputType::CUBE_TEXTURE, [](void *self, std::string const &path) { return static_cast<Viewport *>(self)->load_cube_texture(path); });
             } else if (type == "buffer" || type == "cubemap") {
-                auto input_copy = id_map[id];
-                input_copy.channel = input["channel"];
-                input_copy.sampler = get_sampler(samplers, input);
-                temp_inputs.push_back(input_copy);
+                if (id_map.contains(id)) {
+                    auto input_copy = id_map[id];
+                    input_copy.channel = input["channel"];
+                    input_copy.sampler = get_sampler(samplers, input);
+                    temp_inputs.push_back(input_copy);
+                } else {
+                    temp_inputs.push_back({.type = ShaderPassInputType::NONE});
+                }
             } else if (type == "keyboard") {
                 temp_inputs.push_back({
                     .type = ShaderPassInputType::KEYBOARD,
@@ -1186,6 +1205,10 @@ void Viewport::load_shadertoy_json(nlohmann::json json) {
         auto mip_sampler1 = samplers[static_cast<size_t>(ShaderToyFilter::MIPMAP) + static_cast<size_t>(ShaderToyWrap::REPEAT) * 3];
         auto pass_needs_mipmaps = [&](auto &pass) {
             for (auto &input : pass.inputs) {
+                if (input.type == ShaderPassInputType::NONE) {
+                    continue;
+                }
+
                 if (input.sampler == mip_sampler0 || input.sampler == mip_sampler1) {
                     switch (input.type) {
                     case ShaderPassInputType::BUFFER: new_buffer_passes[input.index].needs_mipmap = true; break;

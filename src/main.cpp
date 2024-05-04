@@ -98,8 +98,6 @@ ShaderApp::ShaderApp()
         download_shadertoy(rml_input);
     };
 
-    ui.app_window.set_vsync(true);
-
     ui.buffer_panel.load_shadertoy_json(nlohmann::json::parse(std::ifstream("default-shader.json")));
 }
 

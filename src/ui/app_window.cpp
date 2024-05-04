@@ -228,6 +228,6 @@ void AppWindow::set_fullscreen(bool is_fullscreen) {
 }
 
 void AppWindow::set_vsync(bool enabled) {
-    // TODO: Add present mode function in Daxa
-    auto present_mode = enabled ? daxa::PresentMode::MAILBOX : daxa::PresentMode::IMMEDIATE;
+    auto present_mode = enabled ? daxa::PresentMode::FIFO : daxa::PresentMode::IMMEDIATE;
+    swapchain.set_present_mode(present_mode);
 }

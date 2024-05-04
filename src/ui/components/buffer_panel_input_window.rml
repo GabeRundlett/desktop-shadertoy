@@ -547,6 +547,50 @@
                             </datagrid>
                         </div>
                     </panel>
+
+                    <tab>Volumes</tab>
+                    <panel id="bpiw_volumes" class="bpiw_panel">
+                        <div class="bpiw_panel_container">
+                            <datagrid>
+                                <col width="220dp">
+
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview"
+                                        src="../../media/icons/volume_gray.png" />
+                                    <div class="bpiw_option_info">
+                                        Gray Noise3D
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        32 x 32 x 32
+                                        <br />
+                                        1 ch, uint8
+                                    </div>
+                                </div>
+
+                                </col>
+                                <col width="220dp">
+
+                                <div class="bpiw_option" onclick="buffer_panel_bpiw_select">
+                                    <img class="bpiw_option_preview"
+                                        src="../../media/icons/volume_rgba.png" />
+                                    <div class="bpiw_option_info">
+                                        RGBA Noise3D
+                                        <br />
+                                        by shadertoy
+                                        <br />
+                                        <br />
+                                        32 x 32 x 32
+                                        <br />
+                                        4 ch, uint8
+                                    </div>
+                                </div>
+
+                                </col>
+                            </datagrid>
+                        </div>
+                    </panel>
                 </tabset>
             </div>
         </div>

@@ -276,19 +276,3 @@ panel {
     display: inline-block;
     vertical-align: top;
 }
-
-scrollbarvertical {
-    width: 8dp;
-}
-
-scrollbarvertical slidertrack {
-    border-left: 1dp;
-    border-right: 1dp;
-    border-color: #9e9e9e;
-    background: #7c7c7c;
-}
-
-scrollbarvertical sliderbar {
-    border: 1dp #aaaaaa;
-    background: #dddddd;
-}
