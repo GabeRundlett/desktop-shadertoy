@@ -183,7 +183,12 @@ void ShaderApp::download_shadertoy(std::string const &input) {
 
     nlohmann::json json = nlohmann::json::parse(boost::beast::buffers_to_string(res.body().data()));
     if (json.contains("Error")) {
-        core::log_error("Failed to download from shadertoy: " + std::string{json["Error"]});
+        auto error = std::string{json["Error"]};
+        if (error == "Shader not found") {
+            core::log_error("Failed to download from shadertoy: " + error + ". This is usually because the creator does not allow API downloads on their shader");
+        } else {
+            core::log_error("Failed to download from shadertoy: " + error);
+        }
         return;
     }
 
