@@ -6,7 +6,7 @@
 
     <body class="buffer_panel">
         <datagrid>
-            <col width="188px">
+            <col width="188dp">
             <div class="ichannel" id="ichannel0">
                 <img class="ichannel_img" id="ichannel0_img"></img>
                 <div class="ichannel_sampler_menu">
@@ -33,7 +33,7 @@
                 </button>
             </div>
             </col>
-            <col width="188px">
+            <col width="188dp">
             <div class="ichannel" id="ichannel1">
                 <img class="ichannel_img" id="ichannel1_img"></img>
                 <div class="ichannel_sampler_menu">
@@ -60,7 +60,7 @@
                 </button>
             </div>
             </col>
-            <col width="188px">
+            <col width="188dp">
             <div class="ichannel" id="ichannel2">
                 <img class="ichannel_img" id="ichannel2_img"></img>
                 <div class="ichannel_sampler_menu">
@@ -87,7 +87,7 @@
                 </button>
             </div>
             </col>
-            <col width="188px">
+            <col width="188dp">
             <div class="ichannel" id="ichannel3">
                 <img class="ichannel_img" id="ichannel3_img"></img>
                 <div class="ichannel_sampler_menu">

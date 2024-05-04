@@ -41,7 +41,7 @@
                 <img onclick="buffer_panel_add" id="buffer_add" src="../../media/icons/add.png"></img>
                 <div id="buffer_panel_add_panel" style="display: none;">
                     <datagrid>
-                        <col width="120px">
+                        <col width="120dp">
                         <div onclick="buffer_panel_add_option" class="buffer_panel_add_option" style="display: none;"
                             id="buffer_panel_add_common">Common</div>
                         <div onclick="buffer_panel_add_option" class="buffer_panel_add_option" style="display: none;"

@@ -645,7 +645,7 @@ void BufferPanel::process_event(Rml::Event &event, std::string const &value) {
 #if _WIN32
         std::system(fmt::format("explorer.exe {}", edit_state.path.string()).c_str());
 #else
-        std::system(fmt::format("open {}", edit_state.path.string()).c_str());
+        std::system(fmt::format("xdg-open {}", edit_state.path.string()).c_str());
 #endif
     }
 }

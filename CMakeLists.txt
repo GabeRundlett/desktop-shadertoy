@@ -38,7 +38,6 @@ PRIVATE
     glfw
     RmlCore RmlDebugger
     fmt::fmt
-    OpenSSL::SSL
     unofficial::nativefiledialog::nfd
     efsw::efsw
     ${Boost_LIBRARIES}
@@ -47,6 +46,24 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${Stb_INCLUDE_DIR}
     "${CMAKE_CURRENT_LIST_DIR}/src"
 )
+
+if(UNIX AND NOT APPLE)
+    # On Linux, we use the system OpenSSL, so it needs to be linked like so:
+    target_link_libraries(${PROJECT_NAME}
+    PRIVATE
+        ${OPENSSL_SSL_LIBRARY}
+        ${OPENSSL_CRYPTO_LIBRARY}
+    )
+    target_include_directories(${PROJECT_NAME}
+    PRIVATE
+        ${OPENSSL_INCLUDE_DIR}
+    )
+else()
+    target_link_libraries(${PROJECT_NAME}
+    PRIVATE
+        OpenSSL::SSL
+    )
+endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     configure_file("packaging/main.rc.in" "${CMAKE_BINARY_DIR}/main.rc")
