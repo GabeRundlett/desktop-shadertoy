@@ -9,7 +9,7 @@
 #endif
 
 inline auto get_resource_dir() noexcept -> std::string {
-#if defined(__linux__)
+#if LINUX_BUILD_APPIMAGE
     // 'APPDIR' environment variable should be set when running in AppImage under unix systems
     const char* app_dir = getenv("APPDIR");
     if (app_dir == nullptr) {
@@ -24,7 +24,7 @@ inline auto get_resource_dir() noexcept -> std::string {
     }
     std::cout << "Using appimage dir " << app_dir << std::endl;
     return std::string(app_dir).append("/usr/share/desktop-shadertoy/");
-#elif
+#else
     return "";
 #endif
 }

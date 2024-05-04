@@ -12,6 +12,8 @@
 ##   '[your-binary-dir]/appimage/desktop-shadertoy-[version]-[arch].appimage'               ##
 ##############################################################################################
 
+target_compile_definitions(${PROJECT_NAME} PRIVATE LINUX_BUILD_APPIMAGE=1)
+
 # Locate or download appiamgetool
 set(APPIMAGETOOL_BINARY_PATH "${CMAKE_BINARY_DIR}/appimage/appimagetool-x86_64.AppImage" CACHE FILEPATH
         "Path for appimagetool. If notset, appimagetool will be acquired from github")
