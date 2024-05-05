@@ -197,17 +197,15 @@ namespace {
     void load_page(Rml::Context *context, Rml::String const &src_url) {
         auto *document = context->LoadDocument(src_url);
         document->Show();
-    }
-    void load_main_page(Rml::Context *context, Rml::String const &src_url) {
-        auto *document = context->LoadDocument(src_url);
-        document->Show();
 
-        load_bottom_bar(document);
-        load_download_bar(document);
-        load_viewport(document);
-        load_settings_window(document);
+        if (src_url.ends_with("src/ui/main.rml")) {
+            load_bottom_bar(document);
+            load_download_bar(document);
+            load_viewport(document);
+            load_settings_window(document);
 
-        AppUi::s_instance->buffer_panel.load(context, document);
+            AppUi::s_instance->buffer_panel.load(context, document);
+        }
     }
 
     void load_fonts() {
@@ -364,7 +362,7 @@ AppUi::AppUi(daxa::Device device)
         constructor.Bind("download_input", &download_input);
     }
 
-    load_main_page(rml_context, resource_dir + "src/ui/main.rml");
+    load_page(rml_context, resource_dir + "src/ui/main.rml");
 }
 
 AppUi::~AppUi() {

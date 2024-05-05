@@ -10,7 +10,6 @@
 #include <cstdlib>
 #include <filesystem>
 #include <random>
-#include <regex>
 
 #include <fstream>
 
@@ -121,6 +120,7 @@ void replace_all(std::string &s, std::string const &toReplace, std::string const
     auto is_word_char = [](char c) -> bool {
         return (c >= 'a' && c < 'z') ||
                (c >= 'A' && c < 'Z') ||
+               (c >= '0' && c < '9') ||
                c == '_';
     };
 
@@ -133,7 +133,7 @@ void replace_all(std::string &s, std::string const &toReplace, std::string const
 
         bool is_word_bound_begin = pos == 0 || !is_word_char(s[pos - 1]);
         bool is_word_bound_end = pos == (s.size() - toReplace.size()) || !is_word_char(s[pos + toReplace.size()]);
-        if (!is_word_bound_begin && !is_word_bound_end && wordBoundary) {
+        if ((!is_word_bound_begin || !is_word_bound_end) && wordBoundary) {
             buf.append(s, prevPos, pos - prevPos);
             buf += toReplace;
             pos += toReplace.size();
@@ -148,13 +148,7 @@ void replace_all(std::string &s, std::string const &toReplace, std::string const
     s.swap(buf);
 }
 
-// static std::regex const SAMPLER2D_REGEX = std::regex(R"regex(\bsampler2D\b)regex");
-// static std::regex const SAMPLER3D_REGEX = std::regex(R"regex(\bsampler3D\b)regex");
-// static std::regex const SAMPLERCUBE_REGEX = std::regex(R"regex(\bsamplerCube\b)regex");
-// static std::regex const TEXTURECUBE_REGEX = std::regex(R"regex(\btextureCube\b)regex");
-
 void shader_preprocess(std::string &contents, std::filesystem::path const &path) {
-    std::smatch matches = {};
     std::string line = {};
     std::stringstream file_ss{contents};
     std::stringstream result_ss = {};
@@ -182,6 +176,7 @@ void shader_preprocess(std::string &contents, std::filesystem::path const &path)
             replace_all(line, "unpackUnorm4x8", "ds_UnpackUnorm4x8", true);
             replace_all(line, "unpackSnorm4x8", "ds_UnpackSnorm4x8", true);
             replace_all(line, "buffer", "ds_Buffer", true);
+            replace_all(line, "sampler", "ds_Sampler", true);
         }
         result_ss << line << "\n";
     }
@@ -1181,18 +1176,18 @@ void Viewport::load_shadertoy_json(nlohmann::json json) {
         const auto shader_include_dir = resource_dir + "src/";
         auto compile_result = pipeline_manager.add_raster_pipeline({
             .vertex_shader_info = daxa::ShaderCompileInfo{
-                .source = daxa::ShaderFile{ shader_include_dir + "app/viewport.glsl" },
+                .source = daxa::ShaderFile{shader_include_dir + "app/viewport.glsl"},
                 .compile_options{
-                    .root_paths = { shader_include_dir },
-                    .defines = extra_defines
-                }
+                    .root_paths = {shader_include_dir},
+                    .defines = extra_defines,
+                },
             },
             .fragment_shader_info = daxa::ShaderCompileInfo{
-                .source = daxa::ShaderFile{ shader_include_dir + "app/viewport.glsl" },
+                .source = daxa::ShaderFile{shader_include_dir + "app/viewport.glsl"},
                 .compile_options{
-                    .root_paths = { shader_include_dir },
-                    .defines = extra_defines
-                }
+                    .root_paths = {shader_include_dir},
+                    .defines = extra_defines,
+                },
             },
             .color_attachments = {{
                 .format = pass_format,
