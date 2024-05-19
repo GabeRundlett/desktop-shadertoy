@@ -9,6 +9,7 @@ namespace Rml {
     class Event;
     class Element;
     class ElementTabSet;
+    class ElementText;
 } // namespace Rml
 
 struct BufferFileEditState;
@@ -43,4 +44,16 @@ struct BufferPanel {
     [[nodiscard]] auto get_shadertoy_json() const -> auto const & {
         return json;
     }
+
+  private:
+    void buffer_panel_ichannel_settings(Rml::Event &event);
+    void buffer_panel_bpiw_close();
+    void buffer_panel_change_filter(Rml::Event &event, Rml::ElementText *tab_div_content);
+    void buffer_panel_change_wrap(Rml::Event &event, Rml::ElementText *tab_div_content);
+    void buffer_panel_bpiw_select(Rml::Event &event, Rml::ElementText *tab_div_content);
+    void buffer_panel_ichannel_close(Rml::Event &event, Rml::ElementText *tab_div_content);
+    void buffer_panel_add(Rml::Event &event);
+    void buffer_panel_add_option(Rml::Event &event);
+    void buffer_panel_tab_close(Rml::Event &event);
+    void buffer_panel_tab_edit(Rml::Event &event);
 };

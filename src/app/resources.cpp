@@ -11,11 +11,13 @@
 inline auto get_resource_dir() noexcept -> std::string {
 #if LINUX_BUILD_APPIMAGE
     // 'APPDIR' environment variable should be set when running in AppImage under unix systems
-    const char* app_dir = getenv("APPDIR");
+    const char *app_dir = getenv("APPDIR");
     if (app_dir == nullptr) {
         // We are not running in AppImage, use the executable path
         std::array<char, PATH_MAX> exe_loc{};
-        if (readlink("/proc/self/exe", exe_loc.data(), PATH_MAX) == -1) { return ""; }
+        if (readlink("/proc/self/exe", exe_loc.data(), PATH_MAX) == -1) {
+            return "";
+        }
         std::filesystem::path exe_path(exe_loc.data());
         auto working_path = exe_path.parent_path() / "";
 
