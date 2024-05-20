@@ -16,7 +16,7 @@ New in version 0.4, you can modify the shader code and select inputs from the de
 
 New in version 0.3.0, you can fetch the contents of shaders that use the "Public + API" setting through the download bar that comes up if you press the download button next to the fullscreen button. You can do so by providing either the URL or just the ID, which in this example is [Xds3zN](https://www.shadertoy.com/view/Xds3zN)
 
-Alternatively, you can create or fork a shadertoy. Then go to your profile, where you'll be able to export it as a json file. Drag and drop this json onto the app window, and it will compile the shadertoy for you!
+If you want to load the .json of a shadertoy, you can drag+drop the file onto the app. The json can be most easily acquired by using the unofficial shadertoy plugin ([firefox](https://addons.mozilla.org/en-US/firefox/addon/shadertoy-unofficial-plugin/) and [chromium](https://chromewebstore.google.com/detail/shadertoy-unofficial-plug/ohicbclhdmkhoabobgppffepcopomhgl?hl=en)), and just pressing the export button. Alternatively, you can create or fork a shadertoy. Then go to your profile, where you'll be able to export it as a json file. Drag and drop this json onto the app window, and it will compile the shadertoy for you!
 
 <img src="res/export.png" width="492"/>
 
