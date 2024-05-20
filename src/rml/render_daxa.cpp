@@ -1,3 +1,5 @@
+#include <app/resources.hpp>
+
 #include <RmlUi/Core/Types.h>
 #include <daxa/daxa.inl>
 
@@ -67,6 +69,7 @@ RenderInterface_Daxa::RenderInterface_Daxa(daxa::Device device, daxa::Format for
         .device = this->device,
         .shader_compile_options = {
             .root_paths = {
+                resource_dir / std::filesystem::path("src"),
                 DAXA_SHADER_INCLUDE_DIR,
                 "src",
             },
@@ -131,11 +134,11 @@ RenderInterface_Daxa::RenderInterface_Daxa(daxa::Device device, daxa::Format for
         }},
         .raster = {},
         .push_constant_size = sizeof(Push),
-        .name = "imgui_pipeline",
+        .name = "rml pipeline",
     });
 
     if (!compile_result.is_ok()) {
-        std::cerr << "Failed to create the rml daxa raster pipeline. This should never happen, contact Gabe Rundlett" << std::endl;
+        std::cerr << "Failed to create the rml daxa raster pipeline. This should never happen, contact Gabe Rundlett. Compilation result = " << compile_result.message() << std::endl;
         std::terminate();
     }
 
