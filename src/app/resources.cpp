@@ -45,7 +45,7 @@ inline auto get_resource_dir() noexcept -> std::filesystem::path {
         }
     } else {
 
-        result = app_dir / "usr/share/desktop-shadertoy";
+        result = app_dir / std::filesystem::path("usr/share/desktop-shadertoy");
     }
 #elif defined(_WIN32)
     auto exe_loc = std::array<char, 512>{};
