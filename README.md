@@ -10,6 +10,8 @@ Desktop Shadertoy is a desktop client application for Shadertoy projects, allowi
 ## Features
 Desktop Shadertoy is absolutely a work in progress but it already supports multi-pass shaders such as [this](https://www.shadertoy.com/view/msG3zG) or [this](https://www.shadertoy.com/view/stVfWc).
 
+New in version 0.4, you can modify the shader code and select inputs from the desktop UI!
+
 <img src="res/fetch.png" />
 
 New in version 0.3.0, you can fetch the contents of shaders that use the "Public + API" setting through the download bar that comes up if you press the download button next to the fullscreen button. You can do so by providing either the URL or just the ID, which in this example is [Xds3zN](https://www.shadertoy.com/view/Xds3zN)
@@ -28,8 +30,6 @@ If you find any issues with Desktop Shadertoy, I'd love it if you opened an issu
 Some shadertoys use GLSL that is not compliant with Vulkan GLSL, and so Desktop Shadertoy does preprocessing on the shadercode to fix-up as many incompatibilities as possible. That being said, some issues still remain such as uninitialized local variables.
 
 ## Future Plans
-I'd like it if it was possible to configure the passes via a UI within the desktop client itself, as opposed to having to go through the web UI or modifying the json manually. And it would be even cooler if you could use your own local glsl text files as sources for the buffers, and have it reload automatically on file change.
-
 I currently don't have plans on supporting Audio passes, however this would be a welcome and interesting PR if anyone was super passionate about it.
 
 ## Platforms
