@@ -1,0 +1,13 @@
+diff --git a/glslang/MachineIndependent/preprocessor/Pp.cpp b/glslang/MachineIndependent/preprocessor/Pp.cpp
+index 16b9d24..6af7c09 100644
+--- a/glslang/MachineIndependent/preprocessor/Pp.cpp
++++ b/glslang/MachineIndependent/preprocessor/Pp.cpp
+@@ -1300,8 +1300,6 @@ MacroExpandResult TPpContext::MacroExpand(TPpToken* ppToken, bool expandUndef, b
+ 
+             if (token == ')') {
+                 // closing paren of call
+-                if (in->mac->args.size() == 1 && !tokenRecorded)
+-                    break;
+                 arg++;
+                 break;
+             }
