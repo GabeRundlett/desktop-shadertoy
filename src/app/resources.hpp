@@ -1,5 +1,5 @@
 #pragma once
 
-#include <string>
+#include <filesystem>
 
-extern const std::string resource_dir;
+extern const std::filesystem::path resource_dir;

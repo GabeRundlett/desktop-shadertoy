@@ -194,11 +194,12 @@ namespace {
 } // namespace
 
 namespace {
-    void load_page(Rml::Context *context, Rml::String const &src_url) {
-        auto *document = context->LoadDocument(src_url);
+    void load_page(Rml::Context *context, std::filesystem::path const &src_url) {
+        auto src_url_string = src_url.string();
+        auto *document = context->LoadDocument(src_url_string);
         document->Show();
 
-        if (src_url.ends_with("src/ui/main.rml")) {
+        if (src_url_string.ends_with("src/ui/main.rml")) {
             load_bottom_bar(document);
             load_download_bar(document);
             load_viewport(document);
@@ -209,7 +210,7 @@ namespace {
     }
 
     void load_fonts() {
-        const Rml::String directory = resource_dir + "media/fonts/";
+        const std::filesystem::path directory = resource_dir / "media/fonts";
 
         struct FontFace {
             const char *filename;
@@ -224,7 +225,7 @@ namespace {
         };
 
         for (const FontFace &face : font_faces) {
-            Rml::LoadFontFace(directory + face.filename, face.fallback_face);
+            Rml::LoadFontFace((directory / face.filename).string(), face.fallback_face);
         }
     }
 
@@ -362,7 +363,7 @@ AppUi::AppUi(daxa::Device device)
         constructor.Bind("download_input", &download_input);
     }
 
-    load_page(rml_context, resource_dir + "src/ui/main.rml");
+    load_page(rml_context, resource_dir / "src/ui/main.rml");
 }
 
 AppUi::~AppUi() {
