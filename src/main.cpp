@@ -286,7 +286,7 @@ auto ShaderApp::record_main_task_graph() -> daxa::TaskGraph {
                 .src_image_layout = ti.get(viewport_render_image).layout,
                 .dst_image = ti.get(task_swapchain_image).ids[0],
                 .dst_image_layout = ti.get(task_swapchain_image).layout,
-                .src_offsets = {{{static_cast<int32_t>(viewport_pos0.x), static_cast<int32_t>(viewport_pos0.y), 0}, {static_cast<int32_t>(viewport_pos1.x), static_cast<int32_t>(viewport_pos1.y), 1}}},
+                .src_offsets = {{{static_cast<int32_t>(viewport_pos0.x), static_cast<int32_t>(viewport_pos1.y), 0}, {static_cast<int32_t>(viewport_pos1.x), static_cast<int32_t>(viewport_pos0.y), 1}}},
                 .dst_offsets = {{{static_cast<int32_t>(viewport_pos0.x), static_cast<int32_t>(viewport_pos0.y), 0}, {static_cast<int32_t>(viewport_pos1.x), static_cast<int32_t>(viewport_pos1.y), 1}}},
                 .filter = daxa::Filter::LINEAR,
             });

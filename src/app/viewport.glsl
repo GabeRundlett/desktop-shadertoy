@@ -128,8 +128,8 @@ void main() {
     vec4 frag_color = vec4(0);
 
 #if CUBEMAP
-    vec2 pixel_i = vec2(gl_FragCoord.xy);
-    vec2 uv = pixel_i / 1024.0 * 2.0 - 1.0;
+    vec2 fragCoord = vec2(gl_FragCoord.xy);
+    vec2 uv = fragCoord / 1024.0 * 2.0 - 1.0;
 
     vec3 ray_dir;
     switch (daxa_push_constant.face_index) {
@@ -142,15 +142,10 @@ void main() {
     }
     ray_dir = normalize(ray_dir);
 
-    mainCubemap(frag_color, pixel_i, vec3(0, 0, 0), ray_dir);
+    mainCubemap(frag_color, fragCoord, vec3(0, 0, 0), ray_dir);
 #else
     vec2 frame_dim = iResolution.xy;
-    vec2 pixel_i = vec2(gl_FragCoord.xy);
-#if MAIN_IMAGE
-    vec2 fragCoord = vec2(pixel_i.x, frame_dim.y - pixel_i.y);
-#else
-    vec2 fragCoord = pixel_i;
-#endif
+    vec2 fragCoord = vec2(gl_FragCoord.xy);
     mainImage(frag_color, fragCoord);
 #endif
 

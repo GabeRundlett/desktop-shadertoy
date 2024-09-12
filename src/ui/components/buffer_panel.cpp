@@ -743,6 +743,8 @@ void BufferPanel::load_shadertoy_json(nlohmann::json const &temp_json) {
         }
 
         json = temp_json["shaders"][0];
+    } else if (temp_json.contains("Shader")) {
+        json = temp_json["Shader"];
     } else {
         json = temp_json;
     }
