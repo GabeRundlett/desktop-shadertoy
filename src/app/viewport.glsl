@@ -96,11 +96,10 @@ vec4 textureGrad(CombinedImageSampler2D c, vec2 p, vec2 dTdx, vec2 dTdy) {
 }
 ivec4 textureGrad(CombinedImageSampler2D_int c, vec2 p, vec2 dTdx, vec2 dTdy) { return textureGrad(daxa_isampler2D(c.image_view_id, c.sampler_id), p, dTdx, dTdy); }
 
-#include <common>
-
-#include <user_code>
-
 layout(location = 0) out vec4 _daxa_color_output;
+
+void mainImage(out vec4 fragColor, in vec2 fragCoord);
+void mainCubemap(out vec4 fragColor, in vec2 fragCoord, in vec3 rayOri, in vec3 rayDir);
 
 void main() {
     // clang-format off
@@ -151,5 +150,9 @@ void main() {
 
     _daxa_color_output = frag_color;
 }
+
+#include <common>
+
+#include <user_code>
 
 #endif
