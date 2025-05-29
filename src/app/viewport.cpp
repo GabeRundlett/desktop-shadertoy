@@ -1,3 +1,5 @@
+#define DAXA_REMOVE_DEPRECATED 0
+
 #include <app/viewport.hpp>
 #include <app/resources.hpp>
 
@@ -28,7 +30,7 @@ enum struct ShaderToyWrap {
 #define MAX_MIP 9
 
 auto do_blit(daxa::TaskInterface ti, daxa::ImageId lower_mip, daxa::ImageId higher_mip, uint32_t mip) {
-    auto image_size = ti.device.info_image(lower_mip).value().size;
+    auto image_size = ti.device.image_info(lower_mip).value().size;
     auto mip_size = std::array<int32_t, 3>{
         std::max<int32_t>(1, static_cast<int32_t>(image_size.x / (1u << mip))),
         std::max<int32_t>(1, static_cast<int32_t>(image_size.y / (1u << mip))),
@@ -65,7 +67,7 @@ void GpuInputUploadTransferTask_record(daxa::Device &device, daxa::CommandRecord
         .name = "staging_input_buffer",
     });
     cmd_list.destroy_buffer_deferred(staging_input_buffer);
-    auto *buffer_ptr = device.get_host_address_as<GpuInput>(staging_input_buffer).value();
+    auto *buffer_ptr = device.buffer_host_address_as<GpuInput>(staging_input_buffer).value();
     *buffer_ptr = gpu_input;
     cmd_list.copy_buffer_to_buffer({
         .src_buffer = staging_input_buffer,
@@ -186,17 +188,17 @@ void shader_preprocess(std::string &contents, std::filesystem::path const &path)
 Viewport::Viewport(daxa::Device a_daxa_device)
     : daxa_device{std::move(a_daxa_device)},
       pipeline_manager{[this]() {
-          auto result = daxa::PipelineManager({
-              .device = daxa_device,
-              .shader_compile_options = {
+          auto result = daxa::PipelineManager(
+              daxa::PipelineManagerInfo2{
+                  .device = daxa_device,
                   .root_paths = {DAXA_SHADER_INCLUDE_DIR, "src"},
-                  .language = daxa::ShaderLanguage::GLSL,
-                  .enable_debug_info = true,
-              },
-              .register_null_pipelines_when_first_compile_fails = true,
-              .custom_preprocessor = shader_preprocess,
-              .name = "pipeline_manager",
-          });
+                  // .write_out_spirv = ".out/spv",
+                  .register_null_pipelines_when_first_compile_fails = true,
+                  .custom_preprocessor = shader_preprocess,
+                  .default_language = daxa::ShaderLanguage::GLSL,
+                  .default_enable_debug_info = true,
+                  .name = "pipeline_manager",
+              });
           return result;
       }()} {
     samplers[static_cast<size_t>(ShaderToyFilter::NEAREST) + static_cast<size_t>(ShaderToyWrap::CLAMP) * 3] = daxa_device.create_sampler({
@@ -328,7 +330,7 @@ auto Viewport::record(daxa::TaskGraph &task_graph) -> daxa::TaskImageView {
                 .name = "staging_buffer",
             });
             cmd_list.destroy_buffer_deferred(staging_buffer);
-            auto *buffer_ptr = daxa_device.get_host_address_as<KeyboardInput>(staging_buffer).value();
+            auto *buffer_ptr = daxa_device.buffer_host_address_as<KeyboardInput>(staging_buffer).value();
             *buffer_ptr = keyboard_input;
             cmd_list.copy_buffer_to_image({
                 .buffer = staging_buffer,
@@ -349,6 +351,7 @@ auto Viewport::record(daxa::TaskGraph &task_graph) -> daxa::TaskImageView {
         case ShaderPassInputType::VOLUME_TEXTURE:
             return task_textures[input.index];
         }
+        return {};
     };
 
     auto get_resource_view_slice = [get_resource_view](ShaderPassInput const &input) -> daxa::TaskImageView {
@@ -361,6 +364,7 @@ auto Viewport::record(daxa::TaskGraph &task_graph) -> daxa::TaskImageView {
         case ShaderPassInputType::VOLUME_TEXTURE: return view;
         case ShaderPassInputType::CUBE_TEXTURE: return view.view({.layer_count = 6});
         }
+        return {};
     };
 
     for (auto &pass : buffer_passes) {
@@ -393,8 +397,8 @@ auto Viewport::record(daxa::TaskGraph &task_graph) -> daxa::TaskImageView {
                 },
                 .task = [output_image_view_a, output_image_view_b](daxa::TaskInterface const &ti) {
                     auto &recorder = ti.recorder;
-                    auto size_a = ti.device.info_image(ti.get(output_image_view_a).ids[0]).value().size;
-                    auto size_b = ti.device.info_image(ti.get(output_image_view_b).ids[0]).value().size;
+                    auto size_a = ti.device.image_info(ti.get(output_image_view_a).ids[0]).value().size;
+                    auto size_b = ti.device.image_info(ti.get(output_image_view_b).ids[0]).value().size;
                     auto size = daxa_i32vec2{
                         std::min(static_cast<int32_t>(size_a.x), static_cast<int32_t>(size_b.x)),
                         std::min(static_cast<int32_t>(size_a.y), static_cast<int32_t>(size_b.y)),
@@ -464,7 +468,7 @@ auto Viewport::record(daxa::TaskGraph &task_graph) -> daxa::TaskImageView {
             .task = [this, &pass, task_input_buffer, get_resource_view_slice, pipeline, inputs, output_view](daxa::TaskInterface const &ti) {
                 auto &cmd_list = ti.recorder;
                 auto input_images = InputImages{};
-                auto size = ti.device.info_image(ti.get(output_view).ids[0]).value().size;
+                auto size = ti.device.image_info(ti.get(output_view).ids[0]).value().size;
                 for (auto const &input : pass.inputs) {
                     if (input.type == ShaderPassInputType::NONE) {
                         continue;
@@ -475,7 +479,7 @@ auto Viewport::record(daxa::TaskGraph &task_graph) -> daxa::TaskImageView {
                 ShaderToyTask_record(
                     pipeline,
                     cmd_list,
-                    daxa_device.get_device_address(ti.get(task_input_buffer).ids[0]).value(),
+                    daxa_device.buffer_device_address(ti.get(task_input_buffer).ids[0]).value(),
                     input_images,
                     ti.get(output_view).ids[0],
                     daxa_u32vec2{size.x, size.y});
@@ -528,7 +532,7 @@ auto Viewport::record(daxa::TaskGraph &task_graph) -> daxa::TaskImageView {
             .task = [this, &pass, task_input_buffer, get_resource_view_slice, pipeline, inputs, output_view, face_views](daxa::TaskInterface const &ti) {
                 auto &cmd_list = ti.recorder;
                 auto input_images = InputImages{};
-                auto size = ti.device.info_image(ti.get(output_view).ids[0]).value().size;
+                auto size = ti.device.image_info(ti.get(output_view).ids[0]).value().size;
                 for (auto const &input : pass.inputs) {
                     if (input.type == ShaderPassInputType::NONE) {
                         continue;
@@ -540,7 +544,7 @@ auto Viewport::record(daxa::TaskGraph &task_graph) -> daxa::TaskImageView {
                     ShaderToyCubeTask_record(
                         pipeline,
                         cmd_list,
-                        daxa_device.get_device_address(ti.get(task_input_buffer).ids[0]).value(),
+                        daxa_device.buffer_device_address(ti.get(task_input_buffer).ids[0]).value(),
                         input_images,
                         ti.get(face_views[i]).view_ids[0],
                         i);
@@ -576,7 +580,7 @@ auto Viewport::record(daxa::TaskGraph &task_graph) -> daxa::TaskImageView {
             .task = [this, &pass, task_input_buffer, get_resource_view_slice, pipeline, inputs, output_view](daxa::TaskInterface const &ti) {
                 auto &cmd_list = ti.recorder;
                 auto input_images = InputImages{};
-                auto size = ti.device.info_image(ti.get(output_view).ids[0]).value().size;
+                auto size = ti.device.image_info(ti.get(output_view).ids[0]).value().size;
                 for (auto const &input : pass.inputs) {
                     if (input.type == ShaderPassInputType::NONE) {
                         continue;
@@ -587,7 +591,7 @@ auto Viewport::record(daxa::TaskGraph &task_graph) -> daxa::TaskImageView {
                 ShaderToyTask_record(
                     pipeline,
                     cmd_list,
-                    daxa_device.get_device_address(ti.get(task_input_buffer).ids[0]).value(),
+                    daxa_device.buffer_device_address(ti.get(task_input_buffer).ids[0]).value(),
                     input_images,
                     ti.get(output_view).ids[0],
                     daxa_u32vec2{size.x, size.y});
@@ -769,7 +773,7 @@ auto Viewport::load_texture(std::string path) -> std::pair<daxa::ImageId, size_t
                 .allocate_info = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM,
                 .name = "staging_buffer",
             });
-            auto *buffer_ptr = daxa_device.get_host_address_as<uint8_t>(staging_buffer).value();
+            auto *buffer_ptr = daxa_device.buffer_host_address_as<uint8_t>(staging_buffer).value();
             memcpy(buffer_ptr, temp_data, size_x * size_y * pixel_size_bytes);
             auto &cmd_list = task_runtime.recorder;
             cmd_list.pipeline_barrier({
@@ -840,7 +844,7 @@ auto Viewport::load_cube_texture(std::string path) -> std::pair<daxa::ImageId, s
                     .allocate_info = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM,
                     .name = "staging_buffer",
                 });
-                auto *buffer_ptr = daxa_device.get_host_address_as<uint8_t>(staging_buffer).value();
+                auto *buffer_ptr = daxa_device.buffer_host_address_as<uint8_t>(staging_buffer).value();
                 memcpy(buffer_ptr, loaded_buffers[i], size_x * size_y * 4);
                 auto &cmd_list = task_runtime.recorder;
                 cmd_list.pipeline_barrier({
@@ -913,7 +917,7 @@ auto Viewport::load_volume_texture(std::string id) -> std::pair<daxa::ImageId, s
                 .allocate_info = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM,
                 .name = "staging_buffer",
             });
-            auto *buffer_ptr = daxa_device.get_host_address_as<uint8_t>(staging_buffer).value();
+            auto *buffer_ptr = daxa_device.buffer_host_address_as<uint8_t>(staging_buffer).value();
             memcpy(buffer_ptr, random_numbers.data(), random_numbers.size());
             auto &cmd_list = task_runtime.recorder;
             cmd_list.pipeline_barrier({
@@ -937,6 +941,7 @@ auto Viewport::load_volume_texture(std::string id) -> std::pair<daxa::ImageId, s
 }
 
 void Viewport::load_shadertoy_json(nlohmann::json json) {
+    this->load_failed = false;
     auto &renderpasses = json["renderpass"];
 
     auto id_map = std::unordered_map<std::string, ShaderPassInput>{};
@@ -1197,6 +1202,7 @@ void Viewport::load_shadertoy_json(nlohmann::json json) {
         });
         if (compile_result.is_err() || !compile_result.value()->is_valid()) {
             core::log_error(pipeline_name + ": " + compile_result.message());
+            this->load_failed = true;
             return;
         }
 
@@ -1235,6 +1241,15 @@ void Viewport::load_shadertoy_json(nlohmann::json json) {
         }
         pass_needs_mipmaps(new_image_pass);
     }
+
+    for (auto &pass : buffer_passes)
+        if (pass.pipeline)
+            pipeline_manager.remove_raster_pipeline(pass.pipeline);
+    for (auto &pass : new_cube_passes)
+        if (pass.pipeline)
+            pipeline_manager.remove_raster_pipeline(pass.pipeline);
+    if (image_pass.pipeline)
+        pipeline_manager.remove_raster_pipeline(image_pass.pipeline);
 
     buffer_passes = std::move(new_buffer_passes);
     cube_passes = std::move(new_cube_passes);

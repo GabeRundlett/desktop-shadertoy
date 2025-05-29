@@ -75,6 +75,7 @@ struct Viewport {
     daxa_f32vec2 mouse_pos{};
 
     bool first_record_after_load{};
+    bool load_failed{};
 
     explicit Viewport(daxa::Device a_daxa_device);
     ~Viewport();

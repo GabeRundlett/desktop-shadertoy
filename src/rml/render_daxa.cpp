@@ -1,3 +1,5 @@
+#define DAXA_REMOVE_DEPRECATED 0
+
 #include <app/resources.hpp>
 
 #include <RmlUi/Core/Types.h>
@@ -65,18 +67,17 @@ daxa_f32vec4 linear_to_srgb(daxa_f32vec4 srgb) {
 )glsl";
 
 RenderInterface_Daxa::RenderInterface_Daxa(daxa::Device device, daxa::Format format) : device(std::move(device)) {
-    pipeline_manager = daxa::PipelineManager({
-        .device = this->device,
-        .shader_compile_options = {
+    pipeline_manager = daxa::PipelineManager(
+        daxa::PipelineManagerInfo2{
+            .device = this->device,
             .root_paths = {
                 resource_dir / std::filesystem::path("src"),
                 DAXA_SHADER_INCLUDE_DIR,
                 "src",
             },
-            .language = daxa::ShaderLanguage::GLSL,
-        },
-        .name = "pipeline_manager",
-    });
+            .default_language = daxa::ShaderLanguage::GLSL,
+            .name = "pipeline_manager",
+        });
     auto compile_result = pipeline_manager.add_raster_pipeline(daxa::RasterPipelineCompileInfo{
         .vertex_shader_info = daxa::ShaderCompileInfo{
             .source = daxa::ShaderCode{std::string{SHADER_COMMON} + R"glsl(
@@ -154,6 +155,9 @@ RenderInterface_Daxa::RenderInterface_Daxa(daxa::Device device, daxa::Format for
 }
 
 RenderInterface_Daxa::~RenderInterface_Daxa() {
+    if (crashed) {
+        return;
+    }
     device.wait_idle();
     device.collect_garbage();
     device.destroy_image(default_texture);
@@ -179,7 +183,7 @@ void RenderInterface_Daxa::recreate_ibuffer(size_t ibuffer_new_size) {
 void RenderInterface_Daxa::begin_frame(daxa::ImageId target_image, daxa::CommandRecorder &recorder) {
     using namespace std::literals;
 
-    auto target_image_extent = device.info_image(target_image).value().size;
+    auto target_image_extent = device.image_info(target_image).value().size;
 
     projection = Rml::Matrix4f::ProjectOrtho(0, (float)target_image_extent.x, 0, (float)target_image_extent.y, -10000, 10000);
     SetTransform(nullptr);
@@ -187,9 +191,9 @@ void RenderInterface_Daxa::begin_frame(daxa::ImageId target_image, daxa::Command
 }
 
 void RenderInterface_Daxa::end_frame(daxa::ImageId target_image, daxa::CommandRecorder &recorder) {
-    auto vbuffer_current_size = device.info_buffer(vbuffer).value().size;
+    auto vbuffer_current_size = device.buffer_info(vbuffer).value().size;
     auto vbuffer_needed_size = vertex_cache.size() * sizeof(Vertex);
-    auto ibuffer_current_size = device.info_buffer(ibuffer).value().size;
+    auto ibuffer_current_size = device.buffer_info(ibuffer).value().size;
     auto ibuffer_needed_size = index_cache.size() * sizeof(int);
 
     if (!this->image_uploads.empty()) {
@@ -201,7 +205,7 @@ void RenderInterface_Daxa::end_frame(daxa::ImageId target_image, daxa::CommandRe
         });
         recorder.destroy_buffer_deferred(texture_staging_buffer);
 
-        auto *staging_buffer_data = this->device.get_host_address_as<Rml::byte>(texture_staging_buffer).value();
+        auto *staging_buffer_data = this->device.buffer_host_address_as<Rml::byte>(texture_staging_buffer).value();
         std::memcpy(staging_buffer_data, image_upload_data.data(), upload_size);
 
         for (auto const &image_upload : image_uploads) {
@@ -266,7 +270,7 @@ void RenderInterface_Daxa::end_frame(daxa::ImageId target_image, daxa::CommandRe
         .allocate_info = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM,
         .name = std::string("rml vertex staging buffer"),
     });
-    auto *vtx_dst = device.get_host_address_as<Rml::Vertex>(staging_vbuffer).value();
+    auto *vtx_dst = device.buffer_host_address_as<Rml::Vertex>(staging_vbuffer).value();
     std::copy(vertex_cache.begin(), vertex_cache.end(), vtx_dst);
     recorder.destroy_buffer_deferred(staging_vbuffer);
     auto staging_ibuffer = device.create_buffer({
@@ -274,7 +278,7 @@ void RenderInterface_Daxa::end_frame(daxa::ImageId target_image, daxa::CommandRe
         .allocate_info = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM,
         .name = std::string("rml index staging buffer"),
     });
-    auto *idx_dst = device.get_host_address_as<int>(staging_ibuffer).value();
+    auto *idx_dst = device.buffer_host_address_as<int>(staging_ibuffer).value();
     std::copy(index_cache.begin(), index_cache.end(), idx_dst);
     recorder.destroy_buffer_deferred(staging_ibuffer);
     recorder.pipeline_barrier({
@@ -296,7 +300,7 @@ void RenderInterface_Daxa::end_frame(daxa::ImageId target_image, daxa::CommandRe
         .dst_access = daxa::AccessConsts::VERTEX_SHADER_READ | daxa::AccessConsts::INDEX_INPUT_READ,
     });
 
-    auto target_image_extent = device.info_image(target_image).value().size;
+    auto target_image_extent = device.image_info(target_image).value().size;
 
     auto default_scissor = daxa::Rect2D{.x = 0, .y = 0, .width = target_image_extent.x, .height = target_image_extent.y};
 
@@ -313,8 +317,8 @@ void RenderInterface_Daxa::end_frame(daxa::ImageId target_image, daxa::CommandRe
     });
 
     auto push = Push{};
-    push.vbuffer_ptr = device.get_device_address(vbuffer).value();
-    push.ibuffer_ptr = device.get_device_address(ibuffer).value();
+    push.vbuffer_ptr = device.buffer_device_address(vbuffer).value();
+    push.ibuffer_ptr = device.buffer_device_address(ibuffer).value();
 
     for (auto const &draw_handle : draw_order) {
         auto const &draw = draws[draw_handle - 1];

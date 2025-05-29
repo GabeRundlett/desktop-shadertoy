@@ -32,6 +32,7 @@ class RenderInterface_Daxa : public Rml::RenderInterface {
     void SetTransform(const Rml::Matrix4f *transform) override;
 
     daxa::Device device;
+    bool crashed = false;
 
   private:
     struct Draw {

@@ -101,6 +101,16 @@ layout(location = 0) out vec4 _daxa_color_output;
 void mainImage(out vec4 fragColor, in vec2 fragCoord);
 void mainCubemap(out vec4 fragColor, in vec2 fragCoord, in vec3 rayOri, in vec3 rayDir);
 
+int _daxa_st_assert_index = -1;
+
+void st_assert(bool condition, int index) {
+    if (condition) {
+        _daxa_st_assert_index = clamp(index, _daxa_st_assert_index, 3);
+    }
+}
+
+void st_assert(bool condition) { st_assert(condition, 0); }
+
 void main() {
     // clang-format off
     iResolution           = deref(daxa_push_constant.gpu_input).Resolution;
@@ -146,6 +156,15 @@ void main() {
     vec2 frame_dim = iResolution.xy;
     vec2 fragCoord = vec2(gl_FragCoord.xy);
     mainImage(frag_color, fragCoord);
+
+    if (_daxa_st_assert_index != -1) {
+        switch (_daxa_st_assert_index) {
+        case 0: frag_color = vec4(1, 0, 0, 1); break;
+        case 1: frag_color = vec4(0, 1, 0, 1); break;
+        case 2: frag_color = vec4(0, 0, 1, 1); break;
+        case 3: frag_color = vec4(1, 1, 0, 1); break;
+        }
+    }
 #endif
 
     _daxa_color_output = frag_color;
