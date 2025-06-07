@@ -469,12 +469,14 @@ auto Viewport::record(daxa::TaskGraph &task_graph) -> daxa::TaskImageView {
                 auto &cmd_list = ti.recorder;
                 auto input_images = InputImages{};
                 auto size = ti.device.image_info(ti.get(output_view).ids[0]).value().size;
+                uint32_t i = 1;
                 for (auto const &input : pass.inputs) {
                     if (input.type == ShaderPassInputType::NONE) {
                         continue;
                     }
-                    input_images.Channel[input.channel] = ti.get(get_resource_view_slice(input)).view_ids[0];
+                    input_images.Channel[input.channel] = ti.get(daxa::TaskImageAttachmentIndex{i}).view_ids[0];
                     input_images.Channel_sampler[input.channel] = input.sampler;
+                    ++i;
                 }
                 ShaderToyTask_record(
                     pipeline,
