@@ -196,7 +196,7 @@ Viewport::Viewport(daxa::Device a_daxa_device)
                   .register_null_pipelines_when_first_compile_fails = true,
                   .custom_preprocessor = shader_preprocess,
                   .default_language = daxa::ShaderLanguage::GLSL,
-                  .default_enable_debug_info = true,
+                  .default_enable_debug_info = false,
                   .name = "pipeline_manager",
               });
           return result;

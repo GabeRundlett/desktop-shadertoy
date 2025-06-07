@@ -1,3 +1,6 @@
 [submodule "deps/Daxa"]
 	path = deps/Daxa
 	url = https://github.com/Ipotrick/Daxa
+[submodule "deps/glslang"]
+	path = deps/glslang
+	url = https://github.com/GabeRundlett/glslang

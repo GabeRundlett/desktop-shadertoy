@@ -7,3 +7,4 @@ imgui.ini
 *.dot
 vcpkg/
 media/
+shaders/

@@ -16,7 +16,6 @@ add_executable(${PROJECT_NAME}
 )
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20)
 
-find_package(daxa CONFIG REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
 find_package(RmlUi CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
@@ -30,6 +29,15 @@ find_package(efsw CONFIG REQUIRED)
 find_package(glslang CONFIG REQUIRED)
 find_package(VulkanMemoryAllocator CONFIG REQUIRED)
 find_package(Vulkan REQUIRED)
+
+set(DAXA_USE_VCPKG false)
+set(DAXA_ENABLE_UTILS_IMGUI false)
+set(DAXA_ENABLE_UTILS_MEM true)
+set(DAXA_ENABLE_UTILS_PIPELINE_MANAGER_GLSLANG true)
+set(DAXA_ENABLE_UTILS_PIPELINE_MANAGER_SPIRV_VALIDATION true)
+set(DAXA_ENABLE_UTILS_TASK_GRAPH true)
+set(DAXA_ENABLE_TESTS false)
+add_subdirectory(${PROJECT_SOURCE_DIR}/deps/Daxa)
 
 target_link_libraries(${PROJECT_NAME}
 PRIVATE

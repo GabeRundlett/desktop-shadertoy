@@ -305,6 +305,7 @@ ShaderApp::ShaderApp()
           auto required_implicit = daxa::ImplicitFeatureFlagBits::SWAPCHAIN;
           auto device_info = daxa::DeviceInfo2{};
           device_info.name = "Desktop Shadertoy";
+          device_info.explicit_features = daxa::ExplicitFeatureFlagBits::ROBUSTNESS_2;
           device_info = daxa_instance.choose_device(required_implicit, device_info);
           return daxa_instance.create_device_2(device_info);
       }()},

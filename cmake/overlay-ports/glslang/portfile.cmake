@@ -1,13 +1,17 @@
 vcpkg_check_linkage(ONLY_STATIC_LIBRARY)
 
-vcpkg_from_github(
-    OUT_SOURCE_PATH SOURCE_PATH
-    REPO KhronosGroup/glslang
-    REF "${VERSION}"
-    SHA512 45ec1a23a390319b9270761cf8befb832ac8b4bc215b211c41a543553a97e5ccf17c134c34d8fdbed6efe887a9a7c2f0a955d1bfe1add9e04cc3e95b12e1973a
-    HEAD_REF master
-    PATCHES "allow-empty-functional-macro.patch"
-)
+# vcpkg_from_github(
+#     OUT_SOURCE_PATH SOURCE_PATH
+#     REPO KhronosGroup/glslang
+#     REF "${VERSION}"
+#     SHA512 45ec1a23a390319b9270761cf8befb832ac8b4bc215b211c41a543553a97e5ccf17c134c34d8fdbed6efe887a9a7c2f0a955d1bfe1add9e04cc3e95b12e1973a
+#     HEAD_REF master
+#     PATCHES "allow-empty-functional-macro.patch"
+# )
+
+# 5
+
+set(SOURCE_PATH "${CMAKE_CURRENT_LIST_DIR}/../../../deps/glslang")
 
 vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
     FEATURES
