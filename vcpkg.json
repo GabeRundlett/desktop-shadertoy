@@ -1,20 +1,17 @@
 {
   "name": "desktop-shadertoy",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "Desktop Shadertoy",
   "homepage": "https://github.com/GabeRundlett/desktop-shadertoy",
   "dependencies": [
     "stb",
     "nlohmann-json",
-    {
-      "name": "daxa",
-      "default-features": false,
-      "features": [
-        "utils-mem",
-        "utils-pipeline-manager-glslang",
-        "utils-task-graph"
-      ]
-    },
+
+    "vulkan-memory-allocator",
+    "vulkan-headers",
+    "vulkan",
+    "glslang",
+
     "glfw3",
     "fmt",
     "rmlui",
@@ -27,7 +24,6 @@
   "builtin-baseline": "b346ee32f13f3bf2ef19ac02f982f6938f7a84ea",
   "vcpkg-configuration": {
     "overlay-ports": [
-      "deps/Daxa",
       "cmake/overlay-ports/glslang"
     ]
   }

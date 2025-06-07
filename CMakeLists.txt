@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.21)
 
 include("${CMAKE_CURRENT_LIST_DIR}/cmake/deps.cmake")
 
-project(desktop-shadertoy VERSION 0.4.2)
+project(desktop-shadertoy VERSION 0.4.3)
 
 add_executable(${PROJECT_NAME}
     "src/main.cpp"
@@ -34,7 +34,7 @@ set(DAXA_USE_VCPKG false)
 set(DAXA_ENABLE_UTILS_IMGUI false)
 set(DAXA_ENABLE_UTILS_MEM true)
 set(DAXA_ENABLE_UTILS_PIPELINE_MANAGER_GLSLANG true)
-set(DAXA_ENABLE_UTILS_PIPELINE_MANAGER_SPIRV_VALIDATION true)
+set(DAXA_ENABLE_UTILS_PIPELINE_MANAGER_SPIRV_VALIDATION false)
 set(DAXA_ENABLE_UTILS_TASK_GRAPH true)
 set(DAXA_ENABLE_TESTS false)
 add_subdirectory(${PROJECT_SOURCE_DIR}/deps/Daxa)

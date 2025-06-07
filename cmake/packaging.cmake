@@ -11,8 +11,8 @@ install(
     PATTERN "*.rcss"
     PATTERN "*.rml"
 )
-install(FILES "${daxa_DIR}/../../include/daxa/daxa.inl" "${daxa_DIR}/../../include/daxa/daxa.glsl" DESTINATION "src/daxa")
-install(FILES "${daxa_DIR}/../../include/daxa/utils/task_graph.inl" DESTINATION "src/daxa/utils")
+install(FILES "${CMAKE_SOURCE_DIR}/deps/Daxa/include/daxa/daxa.inl" "${CMAKE_SOURCE_DIR}/deps/Daxa/include/daxa/daxa.glsl" DESTINATION "src/daxa")
+install(FILES "${CMAKE_SOURCE_DIR}/deps/Daxa/include/daxa/utils/task_graph.inl" DESTINATION "src/daxa/utils")
 install(FILES "${CMAKE_SOURCE_DIR}/appicon.png" "${CMAKE_SOURCE_DIR}/default-shader.json" DESTINATION ".")
 install(FILES $<TARGET_RUNTIME_DLLS:${PROJECT_NAME}> DESTINATION ".")
 
