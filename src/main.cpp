@@ -43,7 +43,7 @@ struct ShaderApp {
     daxa::Device daxa_device;
     AppUi ui;
     daxa::TaskGraph main_task_graph;
-    daxa::TaskImage task_swapchain_image;
+    daxa::ExternalTaskImage task_swapchain_image;
 
     Viewport viewport;
 
@@ -311,7 +311,7 @@ ShaderApp::ShaderApp()
       }()},
       ui{daxa_device},
       viewport{daxa_device},
-      task_swapchain_image{daxa::TaskImageInfo{.swapchain_image = true}} {
+      task_swapchain_image{daxa::ExternalTaskImageInfo{.is_swapchain_image = true, .name = "swapchain"}} {
     ui.app_window.on_resize = [&]() {
         if (ui.app_window.size.x <= 0 || ui.app_window.size.y <= 0) {
             return;
@@ -368,7 +368,7 @@ void ShaderApp::render() {
     if (swapchain_image.is_empty()) {
         return;
     }
-    task_swapchain_image.set_images({.images = {&swapchain_image, 1}});
+    task_swapchain_image.set_image(swapchain_image);
 
     if (ui.buffer_panel.dirty) {
         viewport.load_shadertoy_json(ui.buffer_panel.get_shadertoy_json());
@@ -436,65 +436,39 @@ auto ShaderApp::record_main_task_graph() -> daxa::TaskGraph {
         .swapchain = app_window.swapchain,
         .name = "main_tg",
     });
-    task_graph.use_persistent_image(task_swapchain_image);
+    auto const swapchain_view = task_graph.register_image(task_swapchain_image);
 
-    task_graph.add_task({
-        .attachments = {
-            daxa::inl_attachment(daxa::TaskImageAccess::TRANSFER_WRITE, daxa::ImageViewType::REGULAR_2D, task_swapchain_image),
-        },
-        .task = [this](daxa::TaskInterface const &ti) {
-            auto &recorder = ti.recorder;
-            auto swapchain_image = ti.get(task_swapchain_image).ids[0];
-            auto swapchain_image_full_slice = daxa_device.image_view_info(swapchain_image.default_view()).value().slice;
-            recorder.clear_image({
-                .dst_image_layout = daxa::ImageLayout::TRANSFER_DST_OPTIMAL,
-                .clear_value = std::array<daxa::f32, 4>{0.2f, 0.1f, 0.4f, 1.0f},
-                .dst_image = swapchain_image,
-                .dst_slice = swapchain_image_full_slice,
-            });
-        },
-        .name = "clear screen",
-    });
+    task_graph.clear_image({.view = swapchain_view, .clear_value = std::array<daxa::f32, 4>{0.2f, 0.1f, 0.4f, 1.0f}, .name = "clear screen"});
 
     auto viewport_render_image = viewport.record(task_graph);
 
-    task_graph.add_task({
-        .attachments = {
-            daxa::inl_attachment(daxa::TaskImageAccess::TRANSFER_READ, daxa::ImageViewType::REGULAR_2D, viewport_render_image),
-            daxa::inl_attachment(daxa::TaskImageAccess::TRANSFER_WRITE, daxa::ImageViewType::REGULAR_2D, task_swapchain_image),
-        },
-        .task = [viewport_render_image, viewport_size, this](daxa::TaskInterface const &ti) {
-            auto &recorder = ti.recorder;
-            auto image_size = ti.device.image_info(ti.get(viewport_render_image).ids[0]).value().size;
-            auto viewport_pos0 = daxa_f32vec2{
-                ui.viewport_element->GetAbsoluteLeft() + ui.viewport_element->GetClientLeft(),
-                ui.viewport_element->GetAbsoluteTop() + ui.viewport_element->GetClientTop(),
-            };
-            auto viewport_pos1 = daxa_f32vec2{viewport_pos0.x + viewport_size.x, viewport_pos0.y + viewport_size.y};
-            recorder.blit_image_to_image({
-                .src_image = ti.get(viewport_render_image).ids[0],
-                .src_image_layout = ti.get(viewport_render_image).layout,
-                .dst_image = ti.get(task_swapchain_image).ids[0],
-                .dst_image_layout = ti.get(task_swapchain_image).layout,
-                .src_offsets = {{{static_cast<int32_t>(viewport_pos0.x), static_cast<int32_t>(viewport_pos1.y), 0}, {static_cast<int32_t>(viewport_pos1.x), static_cast<int32_t>(viewport_pos0.y), 1}}},
-                .dst_offsets = {{{static_cast<int32_t>(viewport_pos0.x), static_cast<int32_t>(viewport_pos0.y), 0}, {static_cast<int32_t>(viewport_pos1.x), static_cast<int32_t>(viewport_pos1.y), 1}}},
-                .filter = daxa::Filter::LINEAR,
-            });
-        },
-        .name = "blit_image_to_image",
-    });
+    task_graph.add_task(
+        daxa::Task::Transfer("blit_image_to_image")
+            .reads(viewport_render_image)
+            .writes(swapchain_view)
+            .executes([viewport_render_image, swapchain_view, viewport_size, this](daxa::TaskInterface ti) {
+                auto &recorder = ti.recorder;
+                auto viewport_pos0 = daxa_f32vec2{
+                    ui.viewport_element->GetAbsoluteLeft() + ui.viewport_element->GetClientLeft(),
+                    ui.viewport_element->GetAbsoluteTop() + ui.viewport_element->GetClientTop(),
+                };
+                auto viewport_pos1 = daxa_f32vec2{viewport_pos0.x + viewport_size.x, viewport_pos0.y + viewport_size.y};
+                recorder.blit_image_to_image({
+                    .src_image = ti.get(viewport_render_image).id,
+                    .dst_image = ti.get(swapchain_view).id,
+                    .src_offsets = {{{static_cast<int32_t>(viewport_pos0.x), static_cast<int32_t>(viewport_pos1.y), 0}, {static_cast<int32_t>(viewport_pos1.x), static_cast<int32_t>(viewport_pos0.y), 1}}},
+                    .dst_offsets = {{{static_cast<int32_t>(viewport_pos0.x), static_cast<int32_t>(viewport_pos0.y), 0}, {static_cast<int32_t>(viewport_pos1.x), static_cast<int32_t>(viewport_pos1.y), 1}}},
+                    .filter = daxa::Filter::LINEAR,
+                });
+            }));
 
     if (!ui.is_fullscreen) {
-        task_graph.add_task({
-            .attachments = {
-                daxa::inl_attachment(daxa::TaskImageAccess::COLOR_ATTACHMENT, daxa::ImageViewType::REGULAR_2D, task_swapchain_image),
-            },
-            .task = [this](daxa::TaskInterface ti) {
-                auto &recorder = ti.recorder;
-                ui.render(recorder, ti.get(task_swapchain_image).ids[0]);
-            },
-            .name = "ui draw",
-        });
+        task_graph.add_task(
+            daxa::Task::Raster("ui draw")
+                .color_attachment.reads_writes(swapchain_view)
+                .executes([swapchain_view, this](daxa::TaskInterface ti) {
+                    ui.render(ti.recorder, ti.get(swapchain_view).id);
+                }));
     }
     task_graph.submit({});
     task_graph.present({});

@@ -3,11 +3,13 @@
 #include <daxa/daxa.hpp>
 #include <daxa/utils/task_graph.hpp>
 
+// The task resources are external task resources. They must be registered with
+// `TaskGraph::register_image` / `TaskGraph::register_buffer` in every task graph that uses them.
+
 struct PingPongImage_impl {
     using ResourceType = daxa::ImageId;
     using ResourceInfoType = daxa::ImageInfo;
-    using TaskResourceType = daxa::TaskImage;
-    using TaskResourceInfoType = daxa::TaskImageInfo;
+    using TaskResourceType = daxa::ExternalTaskImage;
 
     static auto create(daxa::Device &device, ResourceInfoType const &info) -> ResourceType {
         return device.create_image(info);
@@ -16,15 +18,17 @@ struct PingPongImage_impl {
         device.destroy_image(rsrc_id);
     }
     static auto create_task_resource(ResourceType rsrc_id, std::string const &name) -> TaskResourceType {
-        return TaskResourceType(TaskResourceInfoType{.initial_images = {std::array{rsrc_id}}, .name = name});
+        return TaskResourceType(daxa::ExternalTaskImageInfo{.image = rsrc_id, .name = name});
+    }
+    static void swap(TaskResourceType &a, TaskResourceType &b) {
+        a.swap_images(b);
     }
 };
 
 struct PingPongBuffer_impl {
     using ResourceType = daxa::BufferId;
     using ResourceInfoType = daxa::BufferInfo;
-    using TaskResourceType = daxa::TaskBuffer;
-    using TaskResourceInfoType = daxa::TaskBufferInfo;
+    using TaskResourceType = daxa::ExternalTaskBuffer;
 
     static auto create(daxa::Device &device, ResourceInfoType const &info) -> ResourceType {
         return device.create_buffer(info);
@@ -33,7 +37,10 @@ struct PingPongBuffer_impl {
         device.destroy_buffer(rsrc_id);
     }
     static auto create_task_resource(ResourceType rsrc_id, std::string const &name) -> TaskResourceType {
-        return TaskResourceType(TaskResourceInfoType{.initial_buffers = {std::array{rsrc_id}}, .name = name});
+        return TaskResourceType(daxa::ExternalTaskBufferInfo{.buffer = rsrc_id, .name = name});
+    }
+    static void swap(TaskResourceType &a, TaskResourceType &b) {
+        a.swap_buffers(b);
     }
 };
 
@@ -42,7 +49,6 @@ struct PingPongResource {
     using ResourceType = typename Impl::ResourceType;
     using ResourceInfoType = typename Impl::ResourceInfoType;
     using TaskResourceType = typename Impl::TaskResourceType;
-    using TaskResourceInfoType = typename Impl::TaskResourceInfoType;
 
     struct Resources {
         Resources() = default;
@@ -96,7 +102,7 @@ struct PingPongResource {
     }
 
     void swap() {
-        task_resources.output_resource.swap_images(task_resources.history_resource);
+        Impl::swap(task_resources.output_resource, task_resources.history_resource);
     }
 };
 

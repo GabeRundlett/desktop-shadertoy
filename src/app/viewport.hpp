@@ -58,7 +58,7 @@ struct Viewport {
     ShaderBufferPass image_pass{};
     std::array<daxa::SamplerId, 6> samplers{};
     std::unordered_map<std::string, std::pair<daxa::ImageId, size_t>> loaded_textures{};
-    std::vector<daxa::TaskImage> task_textures{};
+    std::vector<daxa::ExternalTaskImage> task_textures{};
     GpuInput gpu_input{};
 
     using Clock = std::chrono::high_resolution_clock;

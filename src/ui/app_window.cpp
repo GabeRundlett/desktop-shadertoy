@@ -13,20 +13,29 @@
 
 #include <stb_image.h>
 
-auto get_native_handle(GLFWwindow *glfw_window_ptr) -> daxa::NativeWindowHandle {
+auto get_native_window_info(GLFWwindow *glfw_window_ptr) -> daxa::NativeWindowInfo {
 #if defined(_WIN32)
-    return glfwGetWin32Window(glfw_window_ptr);
+    return daxa::NativeWindowInfoWin32{.hwnd = glfwGetWin32Window(glfw_window_ptr)};
 #elif defined(__linux__)
-    return reinterpret_cast<daxa::NativeWindowHandle>(glfwGetX11Window(glfw_window_ptr));
+    return daxa::NativeWindowInfoXlib{.window = reinterpret_cast<void *>(glfwGetX11Window(glfw_window_ptr))};
 #endif
 }
 
-auto get_native_platform(GLFWwindow * /*unused*/) -> daxa::NativeWindowPlatform {
-#if defined(_WIN32)
-    return daxa::NativeWindowPlatform::WIN32_API;
-#elif defined(__linux__)
-    return daxa::NativeWindowPlatform::XLIB_API;
-#endif
+auto choose_surface_format(daxa::Device &device, daxa::NativeWindowInfo const &native_window_info) -> daxa::SurfaceFormat {
+    // Prefer UNORM swapchain formats (the UI shader does its own sRGB conversion).
+    auto const preferred_formats = std::array{
+        daxa::SurfaceFormat{.format = daxa::Format::R8G8B8A8_UNORM},
+        daxa::SurfaceFormat{.format = daxa::Format::B8G8R8A8_UNORM},
+    };
+    try {
+        return device.choose_swapchain_surface_format({
+            .native_window_info = native_window_info,
+            .preferred_formats = preferred_formats,
+        });
+    } catch (...) {
+        // None of the preferred formats are supported, let daxa pick one.
+        return device.choose_swapchain_surface_format({.native_window_info = native_window_info});
+    }
 }
 
 namespace {
@@ -194,16 +203,10 @@ AppWindow::AppWindow(daxa::Device device, daxa_i32vec2 size)
     glfwSetWindowIcon(this->glfw_window.get(), 1, &icon_image);
     stbi_image_free(icon_image.pixels);
 
+    auto const native_window_info = get_native_window_info(this->glfw_window.get());
     this->swapchain = device.create_swapchain({
-        .native_window = get_native_handle(this->glfw_window.get()),
-        .native_window_platform = get_native_platform(this->glfw_window.get()),
-        .surface_format_selector = [](daxa::Format format) -> int32_t {
-            switch (format) {
-            case daxa::Format::R8G8B8A8_UNORM: return 90;
-            case daxa::Format::B8G8R8A8_UNORM: return 80;
-            default: return 0;
-            }
-        },
+        .native_window_info = native_window_info,
+        .surface_format = choose_surface_format(device, native_window_info),
         .present_mode = daxa::PresentMode::FIFO,
         .image_usage = daxa::ImageUsageFlagBits::TRANSFER_DST,
         .max_allowed_frames_in_flight = 1,

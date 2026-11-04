@@ -78,8 +78,8 @@ RenderInterface_Daxa::RenderInterface_Daxa(daxa::Device device, daxa::Format for
             .default_language = daxa::ShaderLanguage::GLSL,
             .name = "pipeline_manager",
         });
-    auto compile_result = pipeline_manager.add_raster_pipeline(daxa::RasterPipelineCompileInfo{
-        .vertex_shader_info = daxa::ShaderCompileInfo{
+    auto compile_result = pipeline_manager.add_raster_pipeline2(daxa::RasterPipelineCompileInfo2{
+        .vertex_shader_info = daxa::ShaderCompileInfo2{
             .source = daxa::ShaderCode{std::string{SHADER_COMMON} + R"glsl(
                 layout(location = 0) out struct {
                     daxa_f32vec4 Color;
@@ -104,12 +104,10 @@ RenderInterface_Daxa::RenderInterface_Daxa(daxa::Device device, daxa::Format for
                     gl_Position.z += 0.5;
                 }
             )glsl"},
-            .compile_options = {
-                .language = daxa::ShaderLanguage::GLSL,
-                .enable_debug_info = true,
-            },
+            .language = daxa::ShaderLanguage::GLSL,
+            .enable_debug_info = true,
         },
-        .fragment_shader_info = daxa::ShaderCompileInfo{
+        .fragment_shader_info = daxa::ShaderCompileInfo2{
             .source = daxa::ShaderCode{std::string{SHADER_COMMON} + R"glsl(
                 layout(location = 0) out daxa_f32vec4 fColor;
                 layout(location = 0) in struct {
@@ -121,10 +119,8 @@ RenderInterface_Daxa::RenderInterface_Daxa(daxa::Device device, daxa::Format for
                     fColor = linear_to_srgb(In.Color.rgba * tex_color);
                 }
             )glsl"},
-            .compile_options = daxa::ShaderCompileOptions{
-                .language = daxa::ShaderLanguage::GLSL,
-                .enable_debug_info = true,
-            },
+            .language = daxa::ShaderLanguage::GLSL,
+            .enable_debug_info = true,
         },
         .color_attachments = {{
             .format = format,
@@ -201,33 +197,28 @@ void RenderInterface_Daxa::end_frame(daxa::ImageId target_image, daxa::CommandRe
 
         auto texture_staging_buffer = this->device.create_buffer({
             .size = static_cast<uint32_t>(upload_size),
-            .allocate_info = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM,
+            .memory_flags = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM,
         });
         recorder.destroy_buffer_deferred(texture_staging_buffer);
 
         auto *staging_buffer_data = this->device.buffer_host_address_as<Rml::byte>(texture_staging_buffer).value();
         std::memcpy(staging_buffer_data, image_upload_data.data(), upload_size);
 
+        // Daxa keeps images in the GENERAL layout. Newly created images start out UNDEFINED and
+        // need a one-time transition to GENERAL before use.
         for (auto const &image_upload : image_uploads) {
-            recorder.pipeline_barrier_image_transition({
+            recorder.pipeline_image_barrier({
                 .src_access = daxa::AccessConsts::HOST_WRITE,
-                .dst_access = daxa::AccessConsts::TRANSFER_READ_WRITE,
-                .dst_layout = daxa::ImageLayout::TRANSFER_DST_OPTIMAL,
-                .image_slice = {
-                    .base_mip_level = 0,
-                    .level_count = 1,
-                    .base_array_layer = 0,
-                    .layer_count = 1,
-                },
-                .image_id = image_upload.image_id,
+                .dst_access = daxa::AccessConsts::TRANSFER_READ | daxa::AccessConsts::TRANSFER_WRITE,
+                .image = image_upload.image_id,
+                .layout_operation = daxa::ImageLayoutOperation::TO_GENERAL,
             });
         }
         for (auto const &image_upload : image_uploads) {
             recorder.copy_buffer_to_image({
-                .buffer = texture_staging_buffer,
+                .src_buffer = texture_staging_buffer,
                 .buffer_offset = image_upload.data,
-                .image = image_upload.image_id,
-                .image_layout = daxa::ImageLayout::TRANSFER_DST_OPTIMAL,
+                .dst_image = image_upload.image_id,
                 .image_slice = {
                     .mip_level = 0,
                     .base_array_layer = 0,
@@ -237,21 +228,10 @@ void RenderInterface_Daxa::end_frame(daxa::ImageId target_image, daxa::CommandRe
                 .image_extent = {static_cast<uint32_t>(image_upload.size.x), static_cast<uint32_t>(image_upload.size.y), 1},
             });
         }
-        for (auto const &image_upload : image_uploads) {
-            recorder.pipeline_barrier_image_transition({
-                .src_access = daxa::AccessConsts::TRANSFER_WRITE,
-                .dst_access = daxa::AccessConsts::FRAGMENT_SHADER_READ,
-                .src_layout = daxa::ImageLayout::TRANSFER_DST_OPTIMAL,
-                .dst_layout = daxa::ImageLayout::READ_ONLY_OPTIMAL,
-                .image_slice = {
-                    .base_mip_level = 0,
-                    .level_count = 1,
-                    .base_array_layer = 0,
-                    .layer_count = 1,
-                },
-                .image_id = image_upload.image_id,
-            });
-        }
+        recorder.pipeline_barrier({
+            .src_access = daxa::AccessConsts::TRANSFER_WRITE,
+            .dst_access = daxa::AccessConsts::FRAGMENT_SHADER_READ,
+        });
     }
 
     if (vbuffer_needed_size > vbuffer_current_size) {
@@ -267,7 +247,7 @@ void RenderInterface_Daxa::end_frame(daxa::ImageId target_image, daxa::CommandRe
 
     auto staging_vbuffer = device.create_buffer({
         .size = static_cast<uint32_t>(vbuffer_needed_size),
-        .allocate_info = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM,
+        .memory_flags = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM,
         .name = std::string("rml vertex staging buffer"),
     });
     auto *vtx_dst = device.buffer_host_address_as<Rml::Vertex>(staging_vbuffer).value();
@@ -275,7 +255,7 @@ void RenderInterface_Daxa::end_frame(daxa::ImageId target_image, daxa::CommandRe
     recorder.destroy_buffer_deferred(staging_vbuffer);
     auto staging_ibuffer = device.create_buffer({
         .size = static_cast<uint32_t>(ibuffer_needed_size),
-        .allocate_info = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM,
+        .memory_flags = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM,
         .name = std::string("rml index staging buffer"),
     });
     auto *idx_dst = device.buffer_host_address_as<int>(staging_ibuffer).value();
@@ -311,7 +291,7 @@ void RenderInterface_Daxa::end_frame(daxa::ImageId target_image, daxa::CommandRe
 
     render_recorder.set_pipeline(*raster_pipeline);
     render_recorder.set_index_buffer({
-        .id = ibuffer,
+        .buffer = ibuffer,
         .offset = 0,
         .index_type = daxa::IndexType::uint32,
     });
