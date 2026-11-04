@@ -65,7 +65,14 @@ struct ShaderApp {
 std::ofstream *f_ptr = nullptr;
 
 namespace core {
+    std::string *error_sink = nullptr;
+
     void log_error(std::string const &msg) {
+        if (error_sink != nullptr) {
+            *error_sink += msg;
+            *error_sink += '\n';
+            return;
+        }
         Rml::Log::Message(Rml::Log::LT_ERROR, "%s", msg.c_str());
         if (!f_ptr)
             return;
@@ -195,98 +202,19 @@ void download_all_shadertoys() {
     thread_pool.stop();
 }
 
-void test_all_shadertoys() {
-    auto dir_iter = std::filesystem::directory_iterator{"shaders"};
+auto run_batch_test(std::span<char const *const> args) -> int;
 
-    int shaders_tested = 0;
-    int shaders_failed = 0;
-
-    auto black_list = std::array{
-        std::string{"4ttyzn.json"},
-        std::string{"7dsBRM.json"},
-        std::string{"clyBzc.json"},
-        std::string{"DdlSWr.json"},
-        std::string{"flBGDy.json"},
-        std::string{"Mlcczs.json"},
-        std::string{"stf3Dj.json"},
-        std::string{"ttGGDz.json"},
-        std::string{"ttjSR3.json"},
-        std::string{"wsKyRc.json"},
-        std::string{"Xlcczj.json"},
-    };
-
-    auto f = std::ofstream("compilation.txt", std::ios_base::app);
-    auto f2 = std::ofstream("compilation-times.txt", std::ios_base::app);
-    f_ptr = &f;
-
-    auto app = ShaderApp();
-    while (true) {
-        auto t0 = Clock::now();
-        std::filesystem::path path;
-        ++shaders_tested;
-        if (!(dir_iter == std::default_sentinel_t{})) {
-            auto const &dir_entry = *dir_iter;
-            path = dir_entry.path();
-            ++dir_iter;
-        } else {
-            break;
-        }
-
-        // if (shaders_tested <= black_list.back()) {
-        //     continue;
-        // }
-        // if (shaders_tested <= 13576) {
-        //     continue;
-        // }
-
-        if (std::find(black_list.begin(), black_list.end(), path.filename()) != black_list.end()) {
-            continue;
-        }
-
-        auto json = nlohmann::json::parse(std::ifstream(path));
-        app.ui.buffer_panel.load_shadertoy_json(json);
-
-        std::cout << std::format("{}, // {}\n", shaders_tested, path.string()) << std::flush;
-        app.update();
-        if (app.should_close()) {
-            break;
-        }
-        auto t1 = Clock::now();
-        app.render();
-        auto t2 = Clock::now();
-
-        if (app.viewport.load_failed) {
-            ++shaders_failed;
-            f << std::format("{}: {}\n", shaders_tested, path.string());
-            f << std::format("[failed] ({}/{} or {}%)\n", shaders_failed, shaders_tested, float(shaders_failed) / float(shaders_tested) * 100) << std::flush;
-        } else {
-            auto d01 = std::chrono::duration<float>(t1 - t0).count();
-            auto d12 = std::chrono::duration<float>(t2 - t1).count();
-            auto d02 = std::chrono::duration<float>(t2 - t0).count();
-            f2 << std::format("{}, {}, {}, {}, {}\n", shaders_tested, path.string(), d01, d12, d02) << std::flush;
-        }
-
-        // try {
-        //     app.daxa_device.wait_idle();
-        // } catch (...) {
-        //     std::ofstream outfile;
-        //     outfile.open("device_lost.txt", std::ios_base::app);
-        //     outfile << std::format("{}, // {}\n", shaders_tested, path.string());
-        //     outfile.close();
-        //     std::terminate();
-        // }
-    }
-}
-
-auto main() -> int {
+auto main(int argc, char **argv) -> int {
     search_for_path_to_fix_working_directory(std::array{
         std::filesystem::path{"media"},
     });
 
-    // download_all_shadertoys();
-    // return 0;
+    auto const args = std::span<char const *const>{argv, static_cast<size_t>(argc)};
+    if (args.size() > 1 && std::string_view{args[1]} == "--batch-test") {
+        return run_batch_test(args.subspan(2));
+    }
 
-    // test_all_shadertoys();
+    // download_all_shadertoys();
     // return 0;
 
     auto app = ShaderApp();

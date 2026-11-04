@@ -7,6 +7,8 @@ project(desktop-shadertoy VERSION 0.4.3)
 add_executable(${PROJECT_NAME}
     "src/main.cpp"
     "src/app/viewport.cpp"
+    "src/app/batch_test.cpp"
+    "src/app/glsl_transform.cpp"
     "src/app/resources.cpp"
     "src/ui/app_window.cpp"
     "src/ui/app_ui.cpp"

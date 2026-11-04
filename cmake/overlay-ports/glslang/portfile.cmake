@@ -9,7 +9,7 @@ vcpkg_check_linkage(ONLY_STATIC_LIBRARY)
 #     PATCHES "allow-empty-functional-macro.patch"
 # )
 
-# 5
+# 9
 
 set(SOURCE_PATH "${CMAKE_CURRENT_LIST_DIR}/../../../deps/glslang")
 

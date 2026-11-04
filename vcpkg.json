@@ -8,8 +8,6 @@
     "nlohmann-json",
 
     "vulkan-memory-allocator",
-    "vulkan-headers",
-    "vulkan",
     "glslang",
 
     "glfw3",
@@ -22,6 +20,9 @@
     "efsw"
   ],
   "builtin-baseline": "b346ee32f13f3bf2ef19ac02f982f6938f7a84ea",
+  "overrides": [
+    { "name": "vulkan-memory-allocator", "version": "3.1.0" }
+  ],
   "vcpkg-configuration": {
     "overlay-ports": [
       "cmake/overlay-ports/glslang"

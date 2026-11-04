@@ -2,6 +2,7 @@
 
 #include <app/viewport.hpp>
 #include <app/resources.hpp>
+#include <app/glsl_transform.hpp>
 
 #include <GLFW/glfw3.h>
 #include <daxa/c/core.h>
@@ -12,6 +13,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <random>
+#include <regex>
 
 #include <fstream>
 
@@ -195,9 +197,9 @@ void replace_all(std::string &s, std::string const &toReplace, std::string const
     buf.reserve(s.size());
 
     auto is_word_char = [](char c) -> bool {
-        return (c >= 'a' && c < 'z') ||
-               (c >= 'A' && c < 'Z') ||
-               (c >= '0' && c < '9') ||
+        return (c >= 'a' && c <= 'z') ||
+               (c >= 'A' && c <= 'Z') ||
+               (c >= '0' && c <= '9') ||
                c == '_';
     };
 
@@ -225,37 +227,36 @@ void replace_all(std::string &s, std::string const &toReplace, std::string const
     s.swap(buf);
 }
 
-void shader_preprocess(std::string &contents, std::filesystem::path const &path) {
+// Code that was stored with escaped newlines ("\\n") has no real newlines. Only such code is unescaped, as
+// otherwise a "\\n" in a comment (e.g. a commented out printf) would break the code.
+void unescape_newlines_if_needed(std::string &code) {
+    if (code.find('\n') == std::string::npos) {
+        replace_all(code, "\\n", "\n");
+    }
+}
+
+// Whether the code contains "#define <name>" without a parameter list.
+auto defines_object_like_macro(std::string const &code, std::string const &name) -> bool {
+    static auto const define_regex = std::regex{R"(#[ \t]*define[ \t]+(\w+)(\(?))"};
+    for (auto it = std::sregex_iterator(code.begin(), code.end(), define_regex); it != std::sregex_iterator{}; ++it) {
+        if ((*it)[1] == name && (*it)[2].length() == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void shader_preprocess(std::string &contents, std::filesystem::path const & /*path*/) {
+    // Shadertoy's sampler types are emulated with structs (see viewport.inl), so that they can be passed to
+    // functions. The rest of the user code conversion happens in transform_shadertoy_code (glsl_transform.cpp).
     std::string line = {};
     std::stringstream file_ss{contents};
     std::stringstream result_ss = {};
-    bool is_standard_code =
-        path.filename() == "daxa.glsl" ||
-        path.filename() == "daxa.inl" ||
-        path.filename() == "task_graph.inl" ||
-        path.filename() == "viewport.glsl" ||
-        path.filename() == "viewport.inl";
     while (std::getline(file_ss, line)) {
         replace_all(line, "sampler2D", "CombinedImageSampler2D", true);
         replace_all(line, "sampler3D", "CombinedImageSampler3D", true);
         replace_all(line, "samplerCube", "CombinedImageSamplerCube", true);
-        if (!is_standard_code) {
-            // These are functions/names that may be used in shadertoy code, however
-            // they're reserved names or functions in this dialect of Vulkan GLSL.
-            // Here, we'll replace them with some working names
-            replace_all(line, "textureCube", "ds_TextureCube", true);
-            replace_all(line, "packUnorm2x16", "ds_PackUnorm2x16", true);
-            replace_all(line, "packSnorm2x16", "ds_PackSnorm2x16", true);
-            replace_all(line, "packUnorm4x8", "ds_PackUnorm4x8", true);
-            replace_all(line, "packSnorm4x8", "ds_PackSnorm4x8", true);
-            replace_all(line, "unpackUnorm2x16", "ds_UnpackUnorm2x16", true);
-            replace_all(line, "unpackSnorm2x16", "ds_UnpackSnorm2x16", true);
-            replace_all(line, "unpackUnorm4x8", "ds_UnpackUnorm4x8", true);
-            replace_all(line, "unpackSnorm4x8", "ds_UnpackSnorm4x8", true);
-            replace_all(line, "buffer", "ds_Buffer", true);
-            replace_all(line, "sampler", "ds_Sampler", true);
-        }
-        result_ss << line << "\n";
+        result_ss << line << '\n';
     }
     contents = result_ss.str();
 }
@@ -263,11 +264,19 @@ void shader_preprocess(std::string &contents, std::filesystem::path const &path)
 Viewport::Viewport(daxa::Device a_daxa_device)
     : daxa_device{std::move(a_daxa_device)},
       pipeline_manager{[this]() {
+          // Debugging aid: DESKTOP_SHADERTOY_DUMP_SHADERS=<dir> writes the preprocessed source and the
+          // SPIR-V of every compiled shader to <dir>.
+          auto dump_dir = std::optional<std::filesystem::path>{};
+          if (char const *dir = std::getenv("DESKTOP_SHADERTOY_DUMP_SHADERS"); dir != nullptr && *dir != '\0') {
+              dump_dir = dir;
+              std::filesystem::create_directories(*dump_dir);
+          }
           auto result = daxa::PipelineManager(
               daxa::PipelineManagerInfo2{
                   .device = daxa_device,
                   .root_paths = {DAXA_SHADER_INCLUDE_DIR, resource_dir / "src", "src"},
-                  // .write_out_spirv = ".out/spv",
+                  .write_out_preprocessed_code = dump_dir,
+                  .write_out_spirv = dump_dir,
                   .register_null_pipelines_when_first_compile_fails = true,
                   .custom_preprocessor = shader_preprocess,
                   .default_language = daxa::ShaderLanguage::GLSL,
@@ -721,7 +730,12 @@ auto Viewport::load_texture(std::string path) -> std::pair<daxa::ImageId, size_t
             temp_data = heap_data;
             temp_format = daxa::Format::R32G32B32A32_UINT;
         } else {
-            temp_format = daxa::Format::UNDEFINED;
+            // Missing file: use a 1x1 black texture.
+            core::log_error("missing texture: " + path);
+            size_x = 1;
+            size_y = 1;
+            heap_data = new stbi_uc[4]{0, 0, 0, 255};
+            temp_data = heap_data;
         }
     }
     auto image_id = daxa_device.create_image({
@@ -782,7 +796,39 @@ auto Viewport::load_cube_texture(std::string path) -> std::pair<daxa::ImageId, s
     auto const task_image_name = "cube texture " + path;
     replace_all(path, "/media/a/", "media/images/");
     stbi_set_flip_vertically_on_load(0);
-    auto *temp_data = stbi_load(path.c_str(), &size_x, &size_y, &channel_n, 4);
+    // Face i > 0 is stored in "<name>_<i>.<ext>". Missing faces (or faces with a different size than the
+    // first loaded face) are replaced by black.
+    auto faces = std::array<std::vector<uint8_t>, 6>{};
+    for (uint32_t i = 0; i < 6; ++i) {
+        auto face_path = std::filesystem::path(path);
+        if (i > 0) {
+            face_path = face_path.parent_path() / std::filesystem::path(face_path.stem().string() + "_" + std::to_string(i) + face_path.extension().string());
+        }
+        int32_t face_x = 0;
+        int32_t face_y = 0;
+        auto *face_data = stbi_load(face_path.string().c_str(), &face_x, &face_y, &channel_n, 4);
+        if (face_data == nullptr) {
+            core::log_error("missing cube texture face: " + face_path.string());
+            continue;
+        }
+        if (size_x == 0) {
+            size_x = face_x;
+            size_y = face_y;
+        }
+        if (face_x == size_x && face_y == size_y) {
+            faces[i].assign(face_data, face_data + static_cast<size_t>(face_x) * face_y * 4);
+        }
+        stbi_image_free(face_data);
+    }
+    if (size_x == 0) {
+        size_x = 1;
+        size_y = 1;
+    }
+    for (auto &face : faces) {
+        if (face.empty()) {
+            face.resize(static_cast<size_t>(size_x) * size_y * 4, 0);
+        }
+    }
     auto image_id = daxa_device.create_image({
         .flags = daxa::ImageCreateFlagBits::COMPATIBLE_CUBE,
         .dimensions = 2,
@@ -798,20 +844,11 @@ auto Viewport::load_cube_texture(std::string path) -> std::pair<daxa::ImageId, s
         .name = "temp_task_graph",
     });
     auto const task_image_view = temp_task_graph.register_image(task_image).layers(0, 6);
-    auto loaded_buffers = std::vector<stbi_uc *>{};
-    loaded_buffers.reserve(6);
-    loaded_buffers.push_back(temp_data);
-    for (uint32_t i = 1; i < 6; ++i) {
-        auto temp_path = std::filesystem::path(path);
-        auto new_path = temp_path.parent_path() / std::filesystem::path(temp_path.stem().string() + "_" + std::to_string(i) + temp_path.extension().string());
-        auto *temp_data = stbi_load(new_path.string().c_str(), &size_x, &size_y, &channel_n, 4);
-        loaded_buffers.push_back(temp_data);
-    }
     // One task uploads all six faces (a task may not attach the same image more than once).
     temp_task_graph.add_task(
         daxa::Task::Transfer("upload_user_texture")
             .writes(task_image_view)
-            .executes([this, &loaded_buffers, size_x, size_y, image_id](daxa::TaskInterface task_runtime) {
+            .executes([this, &faces, size_x, size_y, image_id](daxa::TaskInterface task_runtime) {
                 auto &cmd_list = task_runtime.recorder;
                 cmd_list.pipeline_barrier({
                     .dst_access = daxa::AccessConsts::TRANSFER_WRITE,
@@ -823,7 +860,7 @@ auto Viewport::load_cube_texture(std::string path) -> std::pair<daxa::ImageId, s
                         .name = "staging_buffer",
                     });
                     auto *buffer_ptr = daxa_device.buffer_host_address_as<uint8_t>(staging_buffer).value();
-                    memcpy(buffer_ptr, loaded_buffers[i], size_x * size_y * 4);
+                    memcpy(buffer_ptr, faces[i].data(), faces[i].size());
                     cmd_list.destroy_buffer_deferred(staging_buffer);
                     cmd_list.copy_buffer_to_image({
                         .src_buffer = staging_buffer,
@@ -839,9 +876,6 @@ auto Viewport::load_cube_texture(std::string path) -> std::pair<daxa::ImageId, s
     temp_task_graph.complete({});
     temp_task_graph.execute({});
     task_textures.push_back(task_image);
-    for (auto *loaded_buffer_ptr : loaded_buffers) {
-        stbi_image_free(loaded_buffer_ptr);
-    }
     return std::pair<daxa::ImageId, size_t>{image_id, task_image_index};
 }
 
@@ -943,7 +977,33 @@ void Viewport::load_shadertoy_json(nlohmann::json json) {
 
     new_buffer_passes.reserve(buffer_pass_n);
     new_cube_passes.reserve(cube_pass_n);
-    replace_all(common_code, "\\n", "\n");
+    unescape_newlines_if_needed(common_code);
+
+    auto is_supported_pass_type = [](nlohmann::json const &pass_type) {
+        return pass_type == "image" || pass_type == "buffer" || pass_type == "cubemap";
+    };
+    // The virtual file names of the passes are generated, as the pass names (which may be empty, or contain
+    // any characters) can't be used in #include directives.
+    auto pass_file_name = [](size_t pass_index) { return "_ds_pass" + std::to_string(pass_index); };
+
+    // Convert the WebGL GLSL to Vulkan GLSL. All passes are transformed together with the common code, as
+    // the transformation depends on what the common code defines.
+    auto pass_codes = std::vector<std::string>(renderpasses.size() + 1);
+    {
+        auto code_ptrs = std::vector<std::string *>{};
+        auto pass_index = size_t{0};
+        for (auto &renderpass : renderpasses) {
+            ++pass_index;
+            if (!is_supported_pass_type(renderpass["type"])) {
+                continue;
+            }
+            pass_codes[pass_index] = renderpass.value("code", std::string{});
+            unescape_newlines_if_needed(pass_codes[pass_index]);
+            code_ptrs.push_back(&pass_codes[pass_index]);
+        }
+        transform_shadertoy_code(common_code, code_ptrs);
+    }
+
     pipeline_manager.add_virtual_file(daxa::VirtualFileInfo{
         .name = "common",
         .contents = common_code,
@@ -957,16 +1017,22 @@ void Viewport::load_shadertoy_json(nlohmann::json json) {
     auto pass_i = size_t{0};
     for (auto &renderpass : renderpasses) {
         ++pass_i;
-        auto &name = renderpass["name"];
-        auto &pass_type = renderpass["type"];
-        auto pipeline_name = std::string{name};
         // Skip unknown pass type
-        if (pass_type != "image" && pass_type != "buffer" && pass_type != "cubemap") {
+        if (!is_supported_pass_type(renderpass["type"])) {
             continue;
         }
         user_code.contents += "#if defined(_DESKTOP_SHADERTOY_USER_PASS" + std::to_string(pass_i) + ")\n";
-        user_code.contents += "#include <" + pipeline_name + "_inputs>\n";
-        user_code.contents += "#include <" + pipeline_name + ">\n";
+        user_code.contents += "#include <" + pass_file_name(pass_i) + "_inputs>\n";
+        user_code.contents += "#include <common>\n";
+        user_code.contents += "#include <" + pass_file_name(pass_i) + ">\n";
+        // An object-like "#define mainImage ..." (e.g. an antialiasing wrapper that expands into the definition of
+        // the real mainImage) must not expand at the call in _ds_call_mainImage.
+        if (defines_object_like_macro(common_code, "mainImage") || defines_object_like_macro(pass_codes[pass_i], "mainImage")) {
+            user_code.contents += "#undef mainImage\n";
+        }
+        if (defines_object_like_macro(common_code, "mainCubemap") || defines_object_like_macro(pass_codes[pass_i], "mainCubemap")) {
+            user_code.contents += "#undef mainCubemap\n";
+        }
         user_code.contents += "#endif\n";
     }
     pipeline_manager.add_virtual_file(user_code);
@@ -974,22 +1040,22 @@ void Viewport::load_shadertoy_json(nlohmann::json json) {
     pass_i = size_t{0};
     for (auto &renderpass : renderpasses) {
         ++pass_i;
-        auto &code = renderpass["code"];
-        auto &description = renderpass["description"];
         auto &inputs = renderpass["inputs"];
         auto &name = renderpass["name"];
-        auto &outputs = renderpass["outputs"];
         auto &pass_type = renderpass["type"];
-        auto pipeline_name = std::string{name};
         // Skip unknown pass type
-        if (pass_type != "image" && pass_type != "buffer" && pass_type != "cubemap") {
+        if (!is_supported_pass_type(pass_type)) {
             continue;
+        }
+        auto pipeline_name = name.is_string() ? std::string{name} : std::string{};
+        if (pipeline_name.empty()) {
+            pipeline_name = std::string{pass_type} + " " + std::to_string(pass_i);
         }
 
         auto temp_inputs = std::vector<ShaderPassInput>{};
 
         auto pass_inputs_file = daxa::VirtualFileInfo{
-            .name = pipeline_name + "_inputs",
+            .name = pass_file_name(pass_i) + "_inputs",
             .contents = "#pragma once\n",
         };
 
@@ -1036,10 +1102,10 @@ void Viewport::load_shadertoy_json(nlohmann::json json) {
             return samplers[static_cast<size_t>(filter) + static_cast<size_t>(wrap) * 3];
         };
 
-        pass_inputs_file.contents += "#define iChannel0 CombinedImageSampler2D(daxa_push_constant.input_images.Channel[0], daxa_push_constant.input_images.Channel_sampler[0], 0)\n";
-        pass_inputs_file.contents += "#define iChannel1 CombinedImageSampler2D(daxa_push_constant.input_images.Channel[1], daxa_push_constant.input_images.Channel_sampler[1], 0)\n";
-        pass_inputs_file.contents += "#define iChannel2 CombinedImageSampler2D(daxa_push_constant.input_images.Channel[2], daxa_push_constant.input_images.Channel_sampler[2], 0)\n";
-        pass_inputs_file.contents += "#define iChannel3 CombinedImageSampler2D(daxa_push_constant.input_images.Channel[3], daxa_push_constant.input_images.Channel_sampler[3], 0)\n";
+        // iChannel0-3 are global variables (like the uniforms in WebGL), declared before the common code.
+        // Unbound channels are 2D.
+        auto channel_types = std::array<std::pair<std::string, std::string>, 4>{};
+        channel_types.fill({"CombinedImageSampler2D", ", 0"});
 
         for (auto &input : inputs) {
             auto type = std::string{};
@@ -1052,7 +1118,6 @@ void Viewport::load_shadertoy_json(nlohmann::json json) {
                 continue;
             }
 
-            auto channel_str = std::to_string(uint32_t{input["channel"]});
             auto image_type = type_json_to_glsl_image_type(type);
             auto extra = type_json_to_glsl_image_type_extra(type);
 
@@ -1102,11 +1167,29 @@ void Viewport::load_shadertoy_json(nlohmann::json json) {
             auto id = nlohmann::to_string(input["id"]);
             replace_all(id, "\"", "");
 
-            if (type == "cubemap" && !id_map.contains(id)) {
+            // Inputs refer to other passes by their output id. Shadertoy's json isn't always consistent there
+            // (e.g. a "Cube A" pass with output id 257 being referenced as id 41), so as a fallback, inputs whose
+            // source is the preview image of a pass are resolved by that preview image.
+            auto pass_input = std::optional<ShaderPassInput>{};
+            if (auto iter = id_map.find(id); iter != id_map.end()) {
+                pass_input = iter->second;
+            } else {
+                auto const src = input.contains("src") && input["src"].is_string() ? std::string{input["src"]} : std::string{};
+                if (src.find("/media/previz/cubemap00") != std::string::npos && cube_pass_n > 0) {
+                    pass_input = ShaderPassInput{.type = ShaderPassInputType::CUBE, .index = 0};
+                } else if (auto pos = src.find("/media/previz/buffer0"); pos != std::string::npos && pos + 21 < src.size()) {
+                    auto const buffer_id = std::to_string(257 + (src[pos + 21] - '0'));
+                    if (auto buffer_iter = id_map.find(buffer_id); buffer_iter != id_map.end()) {
+                        pass_input = buffer_iter->second;
+                    }
+                }
+            }
+
+            if (type == "cubemap" && !pass_input) {
                 load_texture_type(ShaderPassInputType::CUBE_TEXTURE, [](void *self, std::string const &path) { return static_cast<Viewport *>(self)->load_cube_texture(path); });
             } else if (type == "buffer" || type == "cubemap") {
-                if (id_map.contains(id)) {
-                    auto input_copy = id_map[id];
+                if (pass_input) {
+                    auto input_copy = *pass_input;
                     input_copy.channel = input["channel"];
                     input_copy.sampler = get_sampler(samplers, input);
                     temp_inputs.push_back(input_copy);
@@ -1124,15 +1207,20 @@ void Viewport::load_shadertoy_json(nlohmann::json json) {
             } else if (type == "volume") {
                 load_texture_type(ShaderPassInputType::VOLUME_TEXTURE, [](void *self, std::string const &id) { return static_cast<Viewport *>(self)->load_volume_texture(id); });
             }
-            pass_inputs_file.contents += std::string{"#undef iChannel"} + channel_str + "\n" + std::string{"#define iChannel"} + channel_str + " " + image_type + "(daxa_push_constant.input_images.Channel[" + channel_str + "], daxa_push_constant.input_images.Channel_sampler[" + channel_str + "]" + extra + ")\n";
+            if (auto const channel = uint32_t{input["channel"]}; channel < channel_types.size()) {
+                channel_types[channel] = {image_type, extra};
+            }
+        }
+        for (uint32_t channel = 0; channel < channel_types.size(); ++channel) {
+            auto const &[image_type, extra] = channel_types[channel];
+            auto const channel_str = std::to_string(channel);
+            pass_inputs_file.contents += image_type + " iChannel" + channel_str + " = " + image_type + "(daxa_push_constant.input_images.Channel[" + channel_str + "], daxa_push_constant.input_images.Channel_sampler[" + channel_str + "]" + extra + ");\n";
         }
 
         auto pass_file = daxa::VirtualFileInfo{
-            .name = pipeline_name,
-            .contents = code,
+            .name = pass_file_name(pass_i),
+            .contents = std::move(pass_codes[pass_i]),
         };
-
-        replace_all(pass_file.contents, "\\n", "\n");
         pipeline_manager.add_virtual_file(pass_file);
         pipeline_manager.add_virtual_file(pass_inputs_file);
 
@@ -1140,12 +1228,27 @@ void Viewport::load_shadertoy_json(nlohmann::json json) {
         auto pass_format = daxa::Format::R32G32B32A32_SFLOAT;
         if (pass_type == "image") {
             pass_format = daxa::Format::R16G16B16A16_SFLOAT;
-            extra_defines.push_back({.name = "MAIN_IMAGE", .value = "1"});
+            extra_defines.push_back({.name = "_DS_MAIN_IMAGE", .value = "1"});
         } else if (pass_type == "cubemap") {
             pass_format = daxa::Format::R16G16B16A16_SFLOAT;
-            extra_defines.push_back({.name = "CUBEMAP", .value = "1"});
+            extra_defines.push_back({.name = "_DS_CUBEMAP", .value = "1"});
         }
         extra_defines.push_back({.name = "_DESKTOP_SHADERTOY_USER_PASS" + std::to_string(pass_i), .value = "1"});
+        // Debugging aid: DESKTOP_SHADERTOY_DISABLE=zero_init,clamp_indices,loop_limit,relaxed_const disables the
+        // corresponding robustness features of viewport.glsl, to find out which one prevents a GPU crash.
+        if (char const *disable = std::getenv("DESKTOP_SHADERTOY_DISABLE"); disable != nullptr) {
+            auto const disabled = std::string_view{disable};
+            for (auto const &[option, define] : std::array<std::pair<std::string_view, std::string_view>, 4>{{
+                     {"zero_init", "_DS_DISABLE_ZERO_INIT"},
+                     {"clamp_indices", "_DS_DISABLE_CLAMP_INDICES"},
+                     {"loop_limit", "_DS_DISABLE_LOOP_LIMIT"},
+                     {"relaxed_const", "_DS_DISABLE_RELAXED_CONST"},
+                 }}) {
+                if (disabled.find(option) != std::string_view::npos) {
+                    extra_defines.push_back({.name = std::string{define}, .value = "1"});
+                }
+            }
+        }
 
         const auto shader_include_dir = resource_dir / std::filesystem::path("src");
         // NOTE: `shader_include_dir` is also a root path of the pipeline manager (see the Viewport constructor).
@@ -1167,15 +1270,29 @@ void Viewport::load_shadertoy_json(nlohmann::json json) {
         if (compile_result.is_err() || !compile_result.value()->is_valid()) {
             core::log_error(pipeline_name + ": " + compile_result.message());
             this->load_failed = true;
+            // Unregister everything compiled for this (failed) load, including the null pipeline that
+            // `register_null_pipelines_when_first_compile_fails` registers for the failed pass.
+            if (compile_result.is_ok()) {
+                pipeline_manager.remove_raster_pipeline(compile_result.value());
+            }
+            for (auto &pass : new_buffer_passes) {
+                pipeline_manager.remove_raster_pipeline(pass.pipeline);
+            }
+            for (auto &pass : new_cube_passes) {
+                pipeline_manager.remove_raster_pipeline(pass.pipeline);
+            }
+            if (new_image_pass.pipeline) {
+                pipeline_manager.remove_raster_pipeline(new_image_pass.pipeline);
+            }
             return;
         }
 
         if (pass_type == "image") {
-            new_image_pass = {name, temp_inputs, compile_result.value()};
+            new_image_pass = {pipeline_name, temp_inputs, compile_result.value()};
         } else if (pass_type == "buffer") {
-            new_buffer_passes.emplace_back(name, temp_inputs, compile_result.value());
+            new_buffer_passes.emplace_back(pipeline_name, temp_inputs, compile_result.value());
         } else if (pass_type == "cubemap") {
-            new_cube_passes.emplace_back(name, temp_inputs, compile_result.value());
+            new_cube_passes.emplace_back(pipeline_name, temp_inputs, compile_result.value());
         }
     }
 
@@ -1209,7 +1326,7 @@ void Viewport::load_shadertoy_json(nlohmann::json json) {
     for (auto &pass : buffer_passes)
         if (pass.pipeline)
             pipeline_manager.remove_raster_pipeline(pass.pipeline);
-    for (auto &pass : new_cube_passes)
+    for (auto &pass : cube_passes)
         if (pass.pipeline)
             pipeline_manager.remove_raster_pipeline(pass.pipeline);
     if (image_pass.pipeline)
